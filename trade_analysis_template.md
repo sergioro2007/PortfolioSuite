@@ -1,55 +1,48 @@
-# Trade Analysis: [TICKER] – [Expiration Date], Entry [Trade Date]
+# Trade Analysis: {TICKER} – {Expiration Date}, Entry {Trade Date}
 
 ## Market Context
-- **Current Price:** [Price]
-- **Implied Volatility (IV):** [IV%]
-- **Put-Call Ratio / Sentiment:** [Value/Description]
-- **Expected Range (1 Week):** $[Low] – $[High]
-- **VIX / Macro:** [VIX Level or Macro Notes]
+- **Current Price:** {price}
+- **Implied Volatility (IV):** {iv}
+- **Put-Call Ratio / Sentiment:** {sentiment}
+- **Expected Range (1 Week):** ${range_low} – ${range_high}
+- **VIX / Macro:** {vix}
 
 ---
 
-## Strategy 1: [Name] (e.g., Iron Condor)
-- **Outlook:** [Neutral/Bullish/Bearish, expected stock behavior]
-- **Trade Structure:**
-  - Sell 1x $[Short Put] Put ([Expiration])
-  - Buy 1x $[Long Put] Put ([Expiration])
-  - Sell 1x $[Short Call] Call ([Expiration])
-  - Buy 1x $[Long Call] Call ([Expiration])
-- **Credit Received:** ~$[Credit]
-- **Max Risk:** $[Risk]
-- **Max Profit:** $[Profit] if [Condition]
-- **Plan:** Enter [Date], close [Date/after 1 week or on $X profit]
-- **Probability of Profit:** [Estimate]
-- **Management:** [How to handle risk/loss/profit management]
+## Strategy 1: Iron Condor (Neutral, High Probability)
+- **Sell 1x ${put_short} Put ({expiration})**
+- **Buy 1x ${put_long} Put ({expiration})**
+- **Sell 1x ${call_short} Call ({expiration})**
+- **Buy 1x ${call_long} Call ({expiration})**
+- **Credit Received:** ~${ic_credit}
+- **Max Risk:** ${ic_risk}
+- **Max Profit:** ${ic_credit} (if {range_low} < {ticker} < {range_high})
+- **Plan:** Enter {trade_date}, close after 1 week or on $100+ profit
+- **Probability of Profit:** High
 
 ---
 
-## Strategy 2: [Name] (e.g., Put Credit Spread)
-- **Outlook:** [Neutral/Bullish/Bearish, expected stock behavior]
-- **Trade Structure:**
-  - Sell 1x $[Short Put] Put ([Expiration])
-  - Buy 1x $[Long Put] Put ([Expiration])
-- **Credit Received:** ~$[Credit]
-- **Max Risk:** $[Risk]
-- **Max Profit:** $[Profit] if [Condition]
-- **Plan:** Enter [Date], close [Date/after 1 week or on $X profit]
-- **Probability of Profit:** [Estimate]
-- **Management:** [How to handle risk/loss/profit management]
+## Strategy 2: Put Credit Spread (Bullish, High Probability)
+- **Sell 1x ${pcs_put_short} Put ({expiration})**
+- **Buy 1x ${pcs_put_long} Put ({expiration})**
+- **Credit Received:** ~${pcs_credit}
+- **Max Risk:** ${pcs_risk}
+- **Max Profit:** ${pcs_credit} (if {ticker} stays above ${pcs_put_short})
+- **Plan:** Enter {trade_date}, close after 1 week or on $100+ profit
+- **Probability of Profit:** High
 
 ---
 
 ## Checklist
 
-- [x] Credit $100+ (or other target)
-- [x] Max risk $350–$400 (or other target)
-- [x] Expiration 2 weeks out, close in 1 week (modify as needed)
-- [x] Entry: [Day]
-- [x] Holding period: [Duration]
-- [x] Decision inputs checked (IV, technicals, macro, sentiment)
-- [x] High-probability structure
+- [x] Credit $100+ (target)
+- [x] Max risk $350–$400
+- [x] 2-week expiration, 1-week hold
+- [x] High liquidity, tight bid/ask, high OI
+- [x] Technicals and sentiment checked
 
 ---
 
 ## Notes
-- [Any trade-specific notes, reminders, or risk management tips.]
+- Exit early if loss exceeds 50% credit or if profit target is reached.
+- Adjust strikes if underlying price moves significantly pre-market.
