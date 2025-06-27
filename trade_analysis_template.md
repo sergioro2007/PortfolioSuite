@@ -1,55 +1,55 @@
-# Trade Analysis Template
+# Trade Analysis: [TICKER] – [Expiration Date], Entry [Trade Date]
 
-- **Symbol:**  
-- **Market Sentiment:**  
-- **Stock Range/Support-Resistance:**  
-- **VIX Level:**  
-- **Strategy (AI Suggested):**  
-- **Strikes:**  
-- **Expiration Date:**  
-- **Entry Date:**  
-- **Credit Received:**  
-- **Max Risk:**  
-- **Expected Holding Period:**  
-- **Decision Inputs Checked:** (VIX, VVIX, technicals, macro, etc.)  
-- **Hedging Plan:**  
-- **Notes:**  
+## Market Context
+- **Current Price:** [Price]
+- **Implied Volatility (IV):** [IV%]
+- **Put-Call Ratio / Sentiment:** [Value/Description]
+- **Expected Range (1 Week):** $[Low] – $[High]
+- **VIX / Macro:** [VIX Level or Macro Notes]
 
-## Checklist (Does this trade fit the plan?)
-- [ ] Credit $100–$150 (for credit spreads)
-- [ ] Max risk $350–$400
-- [ ] Expiration 10–14 days out
-- [ ] Entry Mon/Tue/Wed
-- [ ] 1-week holding
-- [ ] 2–4 trades/week, max 2/day
-- [ ] Decision inputs checked
-- [ ] For credit spreads: Max profit if stock stays above (bull put) or below (bear call) short strike
-- [ ] For butterflies: Max profit if stock closes near middle strike at expiration
+---
 
-## Current Top Stocks for Options Trading (as of June 26, 2025)
-1. AAPL (Apple Inc.)
-2. NVDA (NVIDIA Corp.)
-3. MSFT (Microsoft Corp.)
-4. TSLA (Tesla Inc.)
-5. AMZN (Amazon.com Inc.)
-6. AMD (Advanced Micro Devices Inc.)
-7. INTC (Intel Corp.)
-8. MU (Micron Technology Inc.)
-9. BAC (Bank of America Corp.)
-10. F (Ford Motor Co.)
+## Strategy 1: [Name] (e.g., Iron Condor)
+- **Outlook:** [Neutral/Bullish/Bearish, expected stock behavior]
+- **Trade Structure:**
+  - Sell 1x $[Short Put] Put ([Expiration])
+  - Buy 1x $[Long Put] Put ([Expiration])
+  - Sell 1x $[Short Call] Call ([Expiration])
+  - Buy 1x $[Long Call] Call ([Expiration])
+- **Credit Received:** ~$[Credit]
+- **Max Risk:** $[Risk]
+- **Max Profit:** $[Profit] if [Condition]
+- **Plan:** Enter [Date], close [Date/after 1 week or on $X profit]
+- **Probability of Profit:** [Estimate]
+- **Management:** [How to handle risk/loss/profit management]
 
-> Always search for top active, liquid stocks before suggesting a trade. Use the latest market data to ensure the best candidates for your strategy.
+---
 
-## Example Trade Setups
+## Strategy 2: [Name] (e.g., Put Credit Spread)
+- **Outlook:** [Neutral/Bullish/Bearish, expected stock behavior]
+- **Trade Structure:**
+  - Sell 1x $[Short Put] Put ([Expiration])
+  - Buy 1x $[Long Put] Put ([Expiration])
+- **Credit Received:** ~$[Credit]
+- **Max Risk:** $[Risk]
+- **Max Profit:** $[Profit] if [Condition]
+- **Plan:** Enter [Date], close [Date/after 1 week or on $X profit]
+- **Probability of Profit:** [Estimate]
+- **Management:** [How to handle risk/loss/profit management]
 
-### AAPL Bull Put Spread
-- Strikes: Sell 1x $195 Put, Buy 1x $190 Put (July 11, 2025 expiration)
-- Credit: Target $100–$150
-- Max Risk: $350–$400
-- Notes: Max profit if AAPL stays above $195 at expiration.
+---
 
-### NVDA Bull Put Spread
-- Strikes: Sell 1x $155 Put, Buy 1x $150 Put (July 11, 2025 expiration)
-- Credit: Target $100–$150
-- Max Risk: $350–$400
-- Notes: Max profit if NVDA stays above $155 at expiration.
+## Checklist
+
+- [x] Credit $100+ (or other target)
+- [x] Max risk $350–$400 (or other target)
+- [x] Expiration 2 weeks out, close in 1 week (modify as needed)
+- [x] Entry: [Day]
+- [x] Holding period: [Duration]
+- [x] Decision inputs checked (IV, technicals, macro, sentiment)
+- [x] High-probability structure
+
+---
+
+## Notes
+- [Any trade-specific notes, reminders, or risk management tips.]
