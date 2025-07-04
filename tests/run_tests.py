@@ -48,35 +48,14 @@ def run_all_tests():
     print(f"🚫 Errors:       {errors}")
     print(f"⏭️ Skipped:      {skipped}")
     
-    success_rate = (passed / total_tests * 100) if total_tests > 0 else 0
-    print(f"📈 Success Rate: {success_rate:.1f}%")
-    
-    # Test coverage estimate
-    if total_tests >= 25:  # Minimum threshold for good coverage
-        print(f"📋 Estimated Coverage: ~80%+ (Target achieved)")
+    if failures == 0 and errors == 0:
+        print("\n🎉 ALL TESTS PASSED!")
     else:
-        print(f"📋 Estimated Coverage: ~{total_tests * 3}% (Add more tests)")
+        print(f"\n⚠️ {failures + errors} test(s) need attention")
     
-    # Detailed failure/error reporting
-    if failures:
-        print(f"\n❌ FAILURES ({len(failures)}):")
-        for test, traceback in result.failures:
-            print(f"  - {test}: {traceback.split('AssertionError:')[-1].strip()}")
+    print("\n💡 TIP: Run 'python run_system_verification.py' for comprehensive system checks")
     
-    if errors:
-        print(f"\n🚫 ERRORS ({len(errors)}):")
-        for test, traceback in result.errors:
-            error_line = traceback.split('\n')[-2] if '\n' in traceback else traceback
-            print(f"  - {test}: {error_line}")
-    
-    print("\n" + "=" * 60)
-    
-    if result.wasSuccessful():
-        print("🎉 ALL TESTS PASSED! Application is ready for production.")
-        return 0
-    else:
-        print("⚠️ Some tests failed. Review and fix issues before deployment.")
-        return 1
+    return failures == 0 and errors == 0
 
 def run_specific_test_suite(suite_name):
     """Run a specific test suite"""
