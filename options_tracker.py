@@ -333,10 +333,17 @@ class OptionsTracker:
                 # Generate strategy suggestions based on bias
                 if bias_score > 0.1:  # Bullish bias
                     # Bull Put Spread
-                    short_strike = current_price * 0.95
-                    long_strike = current_price * 0.90
-                    credit = (short_strike - long_strike) * 0.3
-                    max_loss = (short_strike - long_strike) * 100 - credit
+                    short_strike = round(current_price * 0.95, 2)
+                    long_strike = round(current_price * 0.90, 2)
+                    
+                    # Get option prices
+                    expiration_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+                    option_prices = self.get_option_prices(ticker, [short_strike, long_strike], expiration_date, 'put')
+                    
+                    short_put_price = option_prices.get(f"PUT_{short_strike}", 0)
+                    long_put_price = option_prices.get(f"PUT_{long_strike}", 0)
+                    credit = short_put_price - long_put_price
+                    max_loss = (short_strike - long_strike) - credit
                     
                     suggestions.append({
                         'ticker': ticker,
@@ -348,16 +355,27 @@ class OptionsTracker:
                         'credit': credit,
                         'max_loss': max_loss,
                         'profit_target': credit * 0.5,
-                        'expiration': (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d'),
-                        'confidence': min(90, 50 + bias_score * 100)
+                        'expiration': expiration_date,
+                        'confidence': min(90, 50 + bias_score * 100),
+                        'legs': [
+                            {'action': 'SELL', 'type': 'PUT', 'strike': short_strike, 'price': short_put_price},
+                            {'action': 'BUY', 'type': 'PUT', 'strike': long_strike, 'price': long_put_price}
+                        ]
                     })
                 
                 elif bias_score < -0.1:  # Bearish bias
                     # Bear Call Spread
-                    short_strike = current_price * 1.05
-                    long_strike = current_price * 1.10
-                    credit = (long_strike - short_strike) * 0.3
-                    max_loss = (long_strike - short_strike) * 100 - credit
+                    short_strike = round(current_price * 1.05, 2)
+                    long_strike = round(current_price * 1.10, 2)
+                    
+                    # Get option prices
+                    expiration_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+                    option_prices = self.get_option_prices(ticker, [short_strike, long_strike], expiration_date, 'call')
+                    
+                    short_call_price = option_prices.get(f"CALL_{short_strike}", 0)
+                    long_call_price = option_prices.get(f"CALL_{long_strike}", 0)
+                    credit = short_call_price - long_call_price
+                    max_loss = (long_strike - short_strike) - credit
                     
                     suggestions.append({
                         'ticker': ticker,
@@ -369,19 +387,33 @@ class OptionsTracker:
                         'credit': credit,
                         'max_loss': max_loss,
                         'profit_target': credit * 0.5,
-                        'expiration': (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d'),
-                        'confidence': min(90, 50 + abs(bias_score) * 100)
+                        'expiration': expiration_date,
+                        'confidence': min(90, 50 + abs(bias_score) * 100),
+                        'legs': [
+                            {'action': 'SELL', 'type': 'CALL', 'strike': short_strike, 'price': short_call_price},
+                            {'action': 'BUY', 'type': 'CALL', 'strike': long_strike, 'price': long_call_price}
+                        ]
                     })
                 
                 else:  # Neutral bias
                     # Iron Condor
-                    put_short = current_price * 0.95
-                    put_long = current_price * 0.90
-                    call_short = current_price * 1.05
-                    call_long = current_price * 1.10
+                    put_short = round(current_price * 0.95, 2)
+                    put_long = round(current_price * 0.90, 2)
+                    call_short = round(current_price * 1.05, 2)
+                    call_long = round(current_price * 1.10, 2)
                     
-                    credit = ((put_short - put_long) + (call_long - call_short)) * 0.3
-                    max_loss = max((put_short - put_long), (call_long - call_short)) * 100 - credit
+                    # Get option prices
+                    expiration_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+                    strikes = [put_short, put_long, call_short, call_long]
+                    option_prices = self.get_option_prices(ticker, strikes, expiration_date, 'both')
+                    
+                    put_short_price = option_prices.get(f"PUT_{put_short}", 0)
+                    put_long_price = option_prices.get(f"PUT_{put_long}", 0)
+                    call_short_price = option_prices.get(f"CALL_{call_short}", 0)
+                    call_long_price = option_prices.get(f"CALL_{call_long}", 0)
+                    
+                    credit = (put_short_price - put_long_price) + (call_short_price - call_long_price)
+                    max_loss = max((put_short - put_long), (call_long - call_short)) - credit
                     
                     suggestions.append({
                         'ticker': ticker,
@@ -395,8 +427,14 @@ class OptionsTracker:
                         'credit': credit,
                         'max_loss': max_loss,
                         'profit_target': credit * 0.5,
-                        'expiration': (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d'),
-                        'confidence': min(90, 60 + abs(0.5 - bullish_prob) * 100)
+                        'expiration': expiration_date,
+                        'confidence': min(90, 60 + abs(0.5 - bullish_prob) * 100),
+                        'legs': [
+                            {'action': 'SELL', 'type': 'PUT', 'strike': put_short, 'price': put_short_price},
+                            {'action': 'BUY', 'type': 'PUT', 'strike': put_long, 'price': put_long_price},
+                            {'action': 'SELL', 'type': 'CALL', 'strike': call_short, 'price': call_short_price},
+                            {'action': 'BUY', 'type': 'CALL', 'strike': call_long, 'price': call_long_price}
+                        ]
                     })
             
             # Sort by confidence and return top suggestions
@@ -443,7 +481,13 @@ class OptionsTracker:
         closed_trades = self.get_closed_trades()
         
         if not closed_trades:
-            return {'total_pnl': 0, 'avg_weekly': 0, 'win_rate': 0}
+            return {
+                'total_pnl': 0, 
+                'avg_weekly': 0, 
+                'win_rate': 0,
+                'total_trades': 0,
+                'winning_trades': 0
+            }
         
         total_pnl = sum(trade.get('pnl', 0) for trade in closed_trades)
         winning_trades = sum(1 for trade in closed_trades if trade.get('pnl', 0) > 0)
@@ -459,3 +503,57 @@ class OptionsTracker:
             'total_trades': len(closed_trades),
             'winning_trades': winning_trades
         }
+    
+    def get_option_prices(self, ticker: str, strikes: List[float], expiration: str, option_type: str = 'both') -> Dict:
+        """Get estimated option prices for given strikes and expiration"""
+        try:
+            # Get stock data for volatility calculation
+            stock = yf.Ticker(ticker)
+            hist = stock.history(period="1mo")
+            
+            if hist.empty:
+                return {}
+            
+            current_price = hist['Close'].iloc[-1]
+            volatility = hist['Close'].pct_change().std() * np.sqrt(252)
+            
+            # Days to expiration
+            exp_date = datetime.strptime(expiration, '%Y-%m-%d')
+            days_to_exp = (exp_date - datetime.now()).days
+            time_to_exp = days_to_exp / 365.0
+            
+            # Simplified Black-Scholes approximation for option pricing
+            option_prices = {}
+            
+            for strike in strikes:
+                # Put price estimation
+                if option_type in ['put', 'both']:
+                    # Simplified intrinsic + time value with better estimates
+                    put_intrinsic = max(0, strike - current_price)
+                    
+                    # Distance from current price affects time value
+                    distance_factor = abs(strike - current_price) / current_price
+                    time_value_multiplier = max(0.1, 1 - distance_factor * 2)  # Reduce for far OTM
+                    
+                    put_time_value = volatility * current_price * np.sqrt(time_to_exp) * 0.15 * time_value_multiplier
+                    put_price = max(0.05, put_intrinsic + put_time_value)  # Minimum $0.05
+                    option_prices[f"PUT_{strike}"] = put_price
+                
+                # Call price estimation
+                if option_type in ['call', 'both']:
+                    # Simplified intrinsic + time value with better estimates
+                    call_intrinsic = max(0, current_price - strike)
+                    
+                    # Distance from current price affects time value
+                    distance_factor = abs(strike - current_price) / current_price
+                    time_value_multiplier = max(0.1, 1 - distance_factor * 2)  # Reduce for far OTM
+                    
+                    call_time_value = volatility * current_price * np.sqrt(time_to_exp) * 0.15 * time_value_multiplier
+                    call_price = max(0.05, call_intrinsic + call_time_value)  # Minimum $0.05
+                    option_prices[f"CALL_{strike}"] = call_price
+            
+            return option_prices
+            
+        except Exception as e:
+            st.error(f"Error getting option prices for {ticker}: {e}")
+            return {}

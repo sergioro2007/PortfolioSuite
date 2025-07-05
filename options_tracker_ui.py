@@ -61,15 +61,15 @@ def render_dashboard(tracker: OptionsTracker):
     with col1:
         st.metric(
             "Total P&L", 
-            f"${stats['total_pnl']:.2f}",
-            delta=f"${stats['avg_weekly']:.2f}/week"
+            f"${stats.get('total_pnl', 0):.2f}",
+            delta=f"${stats.get('avg_weekly', 0):.2f}/week"
         )
     
     with col2:
         st.metric(
             "Win Rate", 
-            f"{stats['win_rate']:.1%}",
-            delta=f"{stats['winning_trades']}/{stats['total_trades']} trades"
+            f"{stats.get('win_rate', 0):.1%}",
+            delta=f"{stats.get('winning_trades', 0)}/{stats.get('total_trades', 0)} trades"
         )
     
     with col3:
@@ -81,11 +81,12 @@ def render_dashboard(tracker: OptionsTracker):
     
     with col4:
         weekly_target = 500
-        progress = (stats['avg_weekly'] / weekly_target) * 100
+        avg_weekly = stats.get('avg_weekly', 0)
+        progress = (avg_weekly / weekly_target) * 100 if weekly_target > 0 else 0
         st.metric(
             "Target Progress", 
             f"{progress:.1f}%",
-            delta=f"${weekly_target - stats['avg_weekly']:.2f} to target"
+            delta=f"${weekly_target - avg_weekly:.2f} to target"
         )
     
     # Open trades summary
@@ -149,16 +150,32 @@ def render_new_trades(tracker: OptionsTracker):
                     st.write(f"**Bias:** {suggestion['bias']} ({suggestion['bullish_prob']:.1%} bullish probability)")
                     st.write(f"**Confidence:** {suggestion['confidence']:.0f}%")
                     
-                    # Strategy details
-                    if suggestion['strategy'] == 'Bull Put Spread':
-                        st.write(f"**Short Put:** ${suggestion['short_strike']:.2f}")
-                        st.write(f"**Long Put:** ${suggestion['long_strike']:.2f}")
-                    elif suggestion['strategy'] == 'Bear Call Spread':
-                        st.write(f"**Short Call:** ${suggestion['short_strike']:.2f}")
-                        st.write(f"**Long Call:** ${suggestion['long_strike']:.2f}")
-                    elif suggestion['strategy'] == 'Iron Condor':
-                        st.write(f"**Put Spread:** ${suggestion['put_long_strike']:.2f} / ${suggestion['put_short_strike']:.2f}")
-                        st.write(f"**Call Spread:** ${suggestion['call_short_strike']:.2f} / ${suggestion['call_long_strike']:.2f}")
+                    # Detailed leg information
+                    if 'legs' in suggestion:
+                        st.write("**Trade Legs:**")
+                        legs_data = []
+                        for leg in suggestion['legs']:
+                            legs_data.append({
+                                'Action': leg['action'],
+                                'Type': leg['type'],
+                                'Strike': f"${leg['strike']:.2f}",
+                                'Est. Price': f"${leg['price']:.2f}"
+                            })
+                        
+                        legs_df = pd.DataFrame(legs_data)
+                        st.dataframe(legs_df, use_container_width=True, hide_index=True)
+                    
+                    # Strategy details (fallback for older format)
+                    else:
+                        if suggestion['strategy'] == 'Bull Put Spread':
+                            st.write(f"**Short Put:** ${suggestion['short_strike']:.2f}")
+                            st.write(f"**Long Put:** ${suggestion['long_strike']:.2f}")
+                        elif suggestion['strategy'] == 'Bear Call Spread':
+                            st.write(f"**Short Call:** ${suggestion['short_strike']:.2f}")
+                            st.write(f"**Long Call:** ${suggestion['long_strike']:.2f}")
+                        elif suggestion['strategy'] == 'Iron Condor':
+                            st.write(f"**Put Spread:** ${suggestion['put_long_strike']:.2f} / ${suggestion['put_short_strike']:.2f}")
+                            st.write(f"**Call Spread:** ${suggestion['call_short_strike']:.2f} / ${suggestion['call_long_strike']:.2f}")
                 
                 with col2:
                     st.metric("Credit", f"${suggestion['credit']:.2f}")
@@ -243,11 +260,74 @@ def render_trade_management(tracker: OptionsTracker):
     
     st.header("🔍 Trade Management")
     
+    # Manual trade entry section
+    st.subheader("➕ Add Manual Trade")
+    
+    with st.expander("Add New Trade Manually"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            manual_ticker = st.selectbox("Ticker:", list(tracker.watchlist.keys()), key="manual_ticker")
+            manual_strategy = st.selectbox("Strategy:", tracker.strategy_types, key="manual_strategy")
+            manual_credit = st.number_input("Credit Received:", value=0.0, step=0.01, key="manual_credit")
+            manual_max_loss = st.number_input("Max Loss:", value=0.0, step=0.01, key="manual_max_loss")
+        
+        with col2:
+            manual_expiration = st.date_input("Expiration Date:", key="manual_expiration")
+            manual_notes = st.text_area("Trade Notes:", key="manual_notes")
+        
+        # Strategy-specific fields
+        if manual_strategy in ["Bull Put Spread", "Bear Call Spread"]:
+            col1, col2 = st.columns(2)
+            with col1:
+                short_strike = st.number_input("Short Strike:", value=0.0, step=0.01, key="manual_short_strike")
+            with col2:
+                long_strike = st.number_input("Long Strike:", value=0.0, step=0.01, key="manual_long_strike")
+        
+        elif manual_strategy == "Iron Condor":
+            col1, col2 = st.columns(2)
+            with col1:
+                put_short_strike = st.number_input("Put Short Strike:", value=0.0, step=0.01, key="manual_put_short")
+                put_long_strike = st.number_input("Put Long Strike:", value=0.0, step=0.01, key="manual_put_long")
+            with col2:
+                call_short_strike = st.number_input("Call Short Strike:", value=0.0, step=0.01, key="manual_call_short")
+                call_long_strike = st.number_input("Call Long Strike:", value=0.0, step=0.01, key="manual_call_long")
+        
+        if st.button("✅ Add Manual Trade", type="primary"):
+            # Build trade data
+            trade_data = {
+                'ticker': manual_ticker,
+                'strategy': manual_strategy,
+                'credit': manual_credit,
+                'max_loss': manual_max_loss,
+                'expiration': manual_expiration.strftime('%Y-%m-%d'),
+                'notes': manual_notes
+            }
+            
+            # Add strategy-specific data
+            if manual_strategy in ["Bull Put Spread", "Bear Call Spread"]:
+                trade_data['short_strike'] = short_strike
+                trade_data['long_strike'] = long_strike
+            elif manual_strategy == "Iron Condor":
+                trade_data['put_short_strike'] = put_short_strike
+                trade_data['put_long_strike'] = put_long_strike
+                trade_data['call_short_strike'] = call_short_strike
+                trade_data['call_long_strike'] = call_long_strike
+            
+            tracker.add_trade(trade_data)
+            st.success(f"Added manual {manual_strategy} trade for {manual_ticker}!")
+            st.rerun()
+    
+    st.divider()
+    
+    # Existing trade management
     open_trades = tracker.get_open_trades()
     
     if not open_trades:
         st.info("No open trades to manage.")
         return
+    
+    st.subheader("📋 Manage Existing Trades")
     
     # Select trade to manage
     trade_options = [f"{trade['ticker']} - {trade['strategy']} (ID: {trade['id']})" for trade in open_trades]
