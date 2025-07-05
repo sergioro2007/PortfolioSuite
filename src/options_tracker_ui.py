@@ -260,13 +260,17 @@ def render_dashboard(tracker: OptionsTracker):
         for trade in open_trades:
             evaluation = tracker.evaluate_trade(trade)
             
+            # Options contracts are for 100 shares, so multiply by 100 for actual dollar amounts
+            credit_per_contract = trade.get('credit', 0) * 100
+            max_loss_per_contract = trade.get('max_loss', 0) * 100
+            
             trades_data.append({
                 'Ticker': trade['ticker'],
                 'Strategy': trade['strategy'],
                 'Entry Date': trade['entry_date'],
                 'Expiration': trade['expiration'],
-                'Credit': f"${trade.get('credit', 0):.2f}",
-                'Max Loss': f"${trade.get('max_loss', 0):.2f}",
+                'Credit': f"${credit_per_contract:.0f}",
+                'Max Loss': f"${max_loss_per_contract:.0f}",
                 'Recommendation': evaluation['recommendation'],
                 'Reason': evaluation['reason']
             })
@@ -356,9 +360,14 @@ def render_new_trades(tracker: OptionsTracker):
                             st.write(f"**Call Spread:** ${suggestion['call_short_strike']:.2f} / ${suggestion['call_long_strike']:.2f}")
                 
                 with col2:
-                    st.metric("Credit", f"${suggestion['credit']:.2f}")
-                    st.metric("Max Loss", f"${suggestion['max_loss']:.2f}")
-                    st.metric("Profit Target", f"${suggestion['profit_target']:.2f}")
+                    # Options contracts are for 100 shares, so multiply by 100 for actual dollar amounts
+                    credit_per_contract = suggestion['credit'] * 100
+                    max_loss_per_contract = suggestion['max_loss'] * 100
+                    profit_target_per_contract = suggestion['profit_target'] * 100
+                    
+                    st.metric("Credit", f"${credit_per_contract:.0f}")
+                    st.metric("Max Loss", f"${max_loss_per_contract:.0f}")
+                    st.metric("Profit Target", f"${profit_target_per_contract:.0f}")
                 
                 # OptionStrat link - Generate correct URL for the suggested trade
                 optionstrat_url = generate_optionstrat_url(suggestion)
@@ -520,11 +529,15 @@ def render_trade_management(tracker: OptionsTracker):
         col1, col2 = st.columns(2)
         
         with col1:
+            # Options contracts are for 100 shares, so multiply by 100 for actual dollar amounts
+            credit_per_contract = trade.get('credit', 0) * 100
+            max_loss_per_contract = trade.get('max_loss', 0) * 100
+            
             st.write(f"**Strategy:** {trade['strategy']}")
             st.write(f"**Entry Date:** {trade['entry_date']}")
             st.write(f"**Expiration:** {trade['expiration']}")
-            st.write(f"**Credit:** ${trade.get('credit', 0):.2f}")
-            st.write(f"**Max Loss:** ${trade.get('max_loss', 0):.2f}")
+            st.write(f"**Credit:** ${credit_per_contract:.0f}")
+            st.write(f"**Max Loss:** ${max_loss_per_contract:.0f}")
         
         with col2:
             # Days to expiration
@@ -591,15 +604,20 @@ def render_trade_history(tracker: OptionsTracker):
     
     history_data = []
     for trade in closed_trades:
+        # Options contracts are for 100 shares, so multiply by 100 for actual dollar amounts
+        credit_per_contract = trade.get('credit', 0) * 100
+        exit_price_per_contract = trade.get('exit_price', 0) * 100
+        pnl_per_contract = trade.get('pnl', 0) * 100
+        
         history_data.append({
             'ID': trade['id'],
             'Ticker': trade['ticker'],
             'Strategy': trade['strategy'],
             'Entry Date': trade['entry_date'],
             'Exit Date': trade.get('exit_date', ''),
-            'Credit': f"${trade.get('credit', 0):.2f}",
-            'Exit Price': f"${trade.get('exit_price', 0):.2f}",
-            'P&L': f"${trade.get('pnl', 0):.2f}",
+            'Credit': f"${credit_per_contract:.0f}",
+            'Exit Price': f"${exit_price_per_contract:.0f}",
+            'P&L': f"${pnl_per_contract:.0f}",
             'Exit Reason': trade.get('exit_reason', '')
         })
     
@@ -621,14 +639,15 @@ def render_trade_history(tracker: OptionsTracker):
     strategy_stats = {}
     for trade in closed_trades:
         strategy = trade['strategy']
-        pnl = trade.get('pnl', 0)
+        # Options contracts are for 100 shares, so multiply by 100 for actual dollar amounts
+        pnl_per_contract = trade.get('pnl', 0) * 100
         
         if strategy not in strategy_stats:
             strategy_stats[strategy] = {'trades': 0, 'total_pnl': 0, 'wins': 0}
         
         strategy_stats[strategy]['trades'] += 1
-        strategy_stats[strategy]['total_pnl'] += pnl
-        if pnl > 0:
+        strategy_stats[strategy]['total_pnl'] += pnl_per_contract
+        if pnl_per_contract > 0:
             strategy_stats[strategy]['wins'] += 1
     
     strategy_data = []
@@ -639,8 +658,8 @@ def render_trade_history(tracker: OptionsTracker):
         strategy_data.append({
             'Strategy': strategy,
             'Trades': stats['trades'],
-            'Total P&L': f"${stats['total_pnl']:.2f}",
-            'Avg P&L': f"${avg_pnl:.2f}",
+            'Total P&L': f"${stats['total_pnl']:.0f}",
+            'Avg P&L': f"${avg_pnl:.0f}",
             'Win Rate': f"{win_rate:.1%}"
         })
     
