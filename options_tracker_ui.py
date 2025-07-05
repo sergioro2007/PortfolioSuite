@@ -150,6 +150,11 @@ def render_new_trades(tracker: OptionsTracker):
                     st.write(f"**Bias:** {suggestion['bias']} ({suggestion['bullish_prob']:.1%} bullish probability)")
                     st.write(f"**Confidence:** {suggestion['confidence']:.0f}%")
                     
+                    # Show detailed reasoning if available
+                    if 'reasoning' in suggestion:
+                        with st.expander("🧠 Strategy Reasoning", expanded=True):
+                            st.text(suggestion['reasoning'])
+                    
                     # Detailed leg information
                     if 'legs' in suggestion:
                         st.write("**Trade Legs:**")

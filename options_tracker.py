@@ -345,6 +345,35 @@ class OptionsTracker:
                     credit = short_put_price - long_put_price
                     max_loss = (short_strike - long_strike) - credit
                     
+                    # Create detailed reasoning
+                    indicators = prediction.get('indicators', {})
+                    rsi = indicators.get('rsi', 50)
+                    macd = indicators.get('macd', 0)
+                    macd_signal = indicators.get('macd_signal', 0)
+                    momentum = indicators.get('momentum', 0)
+                    macd_status = "bullish" if macd > macd_signal else "bearish"
+                    
+                    # RSI status
+                    if rsi < 30:
+                        rsi_status = "(oversold - bullish)"
+                    elif rsi > 70:
+                        rsi_status = "(overbought - caution)"
+                    else:
+                        rsi_status = "(neutral)"
+                    
+                    reasoning = f"🐂 BULLISH BIAS DETECTED (Score: {bias_score:.2f})\n\n"
+                    reasoning += "📈 Technical Analysis:\n"
+                    reasoning += f"• RSI: {rsi:.1f} {rsi_status}\n"
+                    reasoning += f"• MACD: {macd_status} momentum\n"
+                    reasoning += f"• Price momentum: {momentum:.1f}%\n\n"
+                    reasoning += "🎯 Strategy: Bull Put Spread\n"
+                    reasoning += f"• Expectation: Price stays above ${short_strike:.2f}\n"
+                    reasoning += f"• Profit if {ticker} closes above ${short_strike:.2f} at expiration\n"
+                    reasoning += f"• Max profit: ${credit:.2f} (if price ≥ ${short_strike:.2f})\n"
+                    reasoning += f"• Max loss: ${max_loss:.2f} (if price ≤ ${long_strike:.2f})\n"
+                    reasoning += f"• Break-even: ${short_strike - credit:.2f}\n\n"
+                    reasoning += "⏰ Time Decay: Works in our favor as options lose value"
+                    
                     suggestions.append({
                         'ticker': ticker,
                         'strategy': 'Bull Put Spread',
@@ -357,6 +386,7 @@ class OptionsTracker:
                         'profit_target': credit * 0.5,
                         'expiration': expiration_date,
                         'confidence': min(90, 50 + bias_score * 100),
+                        'reasoning': reasoning,
                         'legs': [
                             {'action': 'SELL', 'type': 'PUT', 'strike': short_strike, 'price': short_put_price},
                             {'action': 'BUY', 'type': 'PUT', 'strike': long_strike, 'price': long_put_price}
@@ -377,6 +407,35 @@ class OptionsTracker:
                     credit = short_call_price - long_call_price
                     max_loss = (long_strike - short_strike) - credit
                     
+                    # Create detailed reasoning
+                    indicators = prediction.get('indicators', {})
+                    rsi = indicators.get('rsi', 50)
+                    macd = indicators.get('macd', 0)
+                    macd_signal = indicators.get('macd_signal', 0)
+                    momentum = indicators.get('momentum', 0)
+                    macd_status = "bullish" if macd > macd_signal else "bearish"
+                    
+                    # RSI status
+                    if rsi > 70:
+                        rsi_status = "(overbought - bearish)"
+                    elif rsi < 30:
+                        rsi_status = "(oversold - caution)"
+                    else:
+                        rsi_status = "(neutral)"
+                    
+                    reasoning = f"🐻 BEARISH BIAS DETECTED (Score: {bias_score:.2f})\n\n"
+                    reasoning += "📉 Technical Analysis:\n"
+                    reasoning += f"• RSI: {rsi:.1f} {rsi_status}\n"
+                    reasoning += f"• MACD: {macd_status} momentum\n"
+                    reasoning += f"• Price momentum: {momentum:.1f}%\n\n"
+                    reasoning += "🎯 Strategy: Bear Call Spread\n"
+                    reasoning += f"• Expectation: Price stays below ${short_strike:.2f}\n"
+                    reasoning += f"• Profit if {ticker} closes below ${short_strike:.2f} at expiration\n"
+                    reasoning += f"• Max profit: ${credit:.2f} (if price ≤ ${short_strike:.2f})\n"
+                    reasoning += f"• Max loss: ${max_loss:.2f} (if price ≥ ${long_strike:.2f})\n"
+                    reasoning += f"• Break-even: ${short_strike + credit:.2f}\n\n"
+                    reasoning += "⏰ Time Decay: Works in our favor as options lose value"
+                    
                     suggestions.append({
                         'ticker': ticker,
                         'strategy': 'Bear Call Spread',
@@ -389,6 +448,7 @@ class OptionsTracker:
                         'profit_target': credit * 0.5,
                         'expiration': expiration_date,
                         'confidence': min(90, 50 + abs(bias_score) * 100),
+                        'reasoning': reasoning,
                         'legs': [
                             {'action': 'SELL', 'type': 'CALL', 'strike': short_strike, 'price': short_call_price},
                             {'action': 'BUY', 'type': 'CALL', 'strike': long_strike, 'price': long_call_price}
@@ -415,6 +475,27 @@ class OptionsTracker:
                     credit = (put_short_price - put_long_price) + (call_short_price - call_long_price)
                     max_loss = max((put_short - put_long), (call_long - call_short)) - credit
                     
+                    # Create detailed reasoning
+                    indicators = prediction.get('indicators', {})
+                    rsi = indicators.get('rsi', 50)
+                    macd = indicators.get('macd', 0)
+                    macd_signal = indicators.get('macd_signal', 0)
+                    momentum = indicators.get('momentum', 0)
+                    macd_status = "bullish" if macd > macd_signal else "bearish"
+                    
+                    reasoning = f"⚖️ NEUTRAL BIAS DETECTED (Score: {bias_score:.2f})\n\n"
+                    reasoning += "📊 Technical Analysis:\n"
+                    reasoning += f"• RSI: {rsi:.1f} (neutral territory)\n"
+                    reasoning += f"• MACD: {macd_status} momentum (mixed signals)\n"
+                    reasoning += f"• Price momentum: {momentum:.1f}% (sideways action)\n\n"
+                    reasoning += "🎯 Strategy: Iron Condor\n"
+                    reasoning += f"• Expectation: Price stays between ${put_short:.2f} and ${call_short:.2f}\n"
+                    reasoning += f"• Profit zone: ${put_short:.2f} ≤ {ticker} ≤ ${call_short:.2f}\n"
+                    reasoning += f"• Max profit: ${credit:.2f} (if price stays in range)\n"
+                    reasoning += f"• Max loss: ${max_loss:.2f} (if price moves beyond wings)\n"
+                    reasoning += f"• Break-even points: ${put_short - credit:.2f} and ${call_short + credit:.2f}\n\n"
+                    reasoning += "⏰ Time Decay: Works strongly in our favor - all 4 options decay"
+                    
                     suggestions.append({
                         'ticker': ticker,
                         'strategy': 'Iron Condor',
@@ -429,6 +510,7 @@ class OptionsTracker:
                         'profit_target': credit * 0.5,
                         'expiration': expiration_date,
                         'confidence': min(90, 60 + abs(0.5 - bullish_prob) * 100),
+                        'reasoning': reasoning,
                         'legs': [
                             {'action': 'SELL', 'type': 'PUT', 'strike': put_short, 'price': put_short_price},
                             {'action': 'BUY', 'type': 'PUT', 'strike': put_long, 'price': put_long_price},
