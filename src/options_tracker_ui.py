@@ -364,6 +364,7 @@ def render_new_trades(tracker: OptionsTracker):
                     credit_per_contract = suggestion['credit'] * 100
                     max_loss_per_contract = suggestion['max_loss'] * 100
                     profit_target_per_contract = suggestion['profit_target'] * 100
+                    max_profit_per_contract = credit_per_contract  # Max profit = credit received
                     
                     # Display both spread price and contract value
                     st.metric(
@@ -377,10 +378,27 @@ def render_new_trades(tracker: OptionsTracker):
                         delta=f"${suggestion['max_loss']:.2f}/share"
                     )
                     st.metric(
-                        "Profit Target", 
+                        "Profit Target (50%)", 
                         f"${profit_target_per_contract:.0f}",
-                        delta=f"${suggestion['profit_target']:.2f}/share"
+                        delta=f"Max: ${max_profit_per_contract:.0f}"
                     )
+                    
+                    # Add explanation for profit target
+                    with st.expander("💡 Profit Exit Strategy", expanded=False):
+                        st.write(f"""
+                        **50% Profit Rule**: Exit when you've captured 50% of maximum profit.
+                        
+                        • **Max Profit**: ${max_profit_per_contract:.0f} (keep entire credit if held to expiration)
+                        • **Profit Target**: ${profit_target_per_contract:.0f} (recommended early exit point)
+                        
+                        **Why exit at 50%?**
+                        • Reduces time decay risk
+                        • Locks in most of the profit early
+                        • Frees up capital for new trades
+                        • Avoids last-minute price movements
+                        
+                        You can always hold to expiration for max profit, but 50% is a proven risk management strategy.
+                        """)
                 
                 # OptionStrat link - Generate correct URL for the suggested trade
                 optionstrat_url = generate_optionstrat_url(suggestion)
