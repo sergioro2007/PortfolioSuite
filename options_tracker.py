@@ -332,9 +332,9 @@ class OptionsTracker:
                 
                 # Generate strategy suggestions based on bias
                 if bias_score > 0.1:  # Bullish bias
-                    # Bull Put Spread
-                    short_strike = round(current_price * 0.95, 2)
-                    long_strike = round(current_price * 0.90, 2)
+                    # Bull Put Spread - Use realistic strikes
+                    short_strike = self.find_otm_strikes(current_price, 0.05, 'put')  # 5% OTM put
+                    long_strike = self.find_otm_strikes(current_price, 0.10, 'put')   # 10% OTM put
                     
                     # Get option prices
                     expiration_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
@@ -364,9 +364,9 @@ class OptionsTracker:
                     })
                 
                 elif bias_score < -0.1:  # Bearish bias
-                    # Bear Call Spread
-                    short_strike = round(current_price * 1.05, 2)
-                    long_strike = round(current_price * 1.10, 2)
+                    # Bear Call Spread - Use realistic strikes  
+                    short_strike = self.find_otm_strikes(current_price, 0.05, 'call')  # 5% OTM call
+                    long_strike = self.find_otm_strikes(current_price, 0.10, 'call')   # 10% OTM call
                     
                     # Get option prices
                     expiration_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
@@ -396,11 +396,11 @@ class OptionsTracker:
                     })
                 
                 else:  # Neutral bias
-                    # Iron Condor
-                    put_short = round(current_price * 0.95, 2)
-                    put_long = round(current_price * 0.90, 2)
-                    call_short = round(current_price * 1.05, 2)
-                    call_long = round(current_price * 1.10, 2)
+                    # Iron Condor - Use realistic strikes
+                    put_short = self.find_otm_strikes(current_price, 0.05, 'put')    # 5% OTM put
+                    put_long = self.find_otm_strikes(current_price, 0.10, 'put')     # 10% OTM put  
+                    call_short = self.find_otm_strikes(current_price, 0.05, 'call')  # 5% OTM call
+                    call_long = self.find_otm_strikes(current_price, 0.10, 'call')   # 10% OTM call
                     
                     # Get option prices
                     expiration_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
@@ -557,3 +557,63 @@ class OptionsTracker:
         except Exception as e:
             st.error(f"Error getting option prices for {ticker}: {e}")
             return {}
+    
+    def find_realistic_strike(self, price: float) -> float:
+        """Find the nearest realistic option strike price"""
+        # Most options have strikes at:
+        # - Whole dollars for stocks over $25
+        # - Half dollars (x.50) for stocks $10-$25  
+        # - Sometimes quarter dollars (x.25, x.75) for liquid stocks
+        
+        if price >= 25:
+            # Round to nearest whole dollar
+            return round(price)
+        elif price >= 10:
+            # Round to nearest 0.50
+            return round(price * 2) / 2
+        else:
+            # Round to nearest 0.25 for lower priced stocks
+            return round(price * 4) / 4
+    
+    def get_strike_chain(self, current_price: float, num_strikes: int = 10) -> List[float]:
+        """Generate a realistic strike chain around current price"""
+        strikes = []
+        base_strike = self.find_realistic_strike(current_price)
+        
+        # Determine strike increment
+        if current_price >= 100:
+            increment = 5  # $5 increments for high-priced stocks
+        elif current_price >= 25:
+            increment = 2.5  # $2.50 increments
+        elif current_price >= 10:
+            increment = 1  # $1 increments
+        else:
+            increment = 0.5  # $0.50 increments
+        
+        # Generate strikes above and below
+        for i in range(-num_strikes//2, num_strikes//2 + 1):
+            strike = base_strike + (i * increment)
+            if strike > 0:
+                strikes.append(strike)
+        
+        return sorted(strikes)
+    
+    def find_otm_strikes(self, current_price: float, distance_pct: float, option_type: str) -> float:
+        """Find realistic OTM strikes at approximately the given distance"""
+        target_price = current_price * (1 + distance_pct if option_type == 'call' else 1 - distance_pct)
+        
+        # Get available strikes
+        strike_chain = self.get_strike_chain(current_price, 20)
+        
+        if option_type == 'call':
+            # Find first strike above target
+            for strike in strike_chain:
+                if strike >= target_price:
+                    return strike
+            return strike_chain[-1]  # Return highest if none found
+        else:  # put
+            # Find first strike below target
+            for strike in reversed(strike_chain):
+                if strike <= target_price:
+                    return strike
+            return strike_chain[0]  # Return lowest if none found
