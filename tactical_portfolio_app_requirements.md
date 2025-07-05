@@ -150,6 +150,7 @@ Each day, check:
 - **Pre-scoring qualification**: Average weekly return > 1.5% mandatory
 - **User-configurable parameters**: RS score (30-100), weekly targets (0.5-5.0%)
 - **Deterministic results**: Consistent ticker discovery across runs
+- **Deterministic mode option**: User-controlled reproducible analysis
 - **Robust error handling**: Graceful handling of data issues
 
 #### 2. Technical Analysis Suite
@@ -176,12 +177,20 @@ Each day, check:
 #### 5. Production-Ready Interface
 - **Streamlit web application** with professional styling
 - **Interactive parameter controls** with real-time validation
+- **Deterministic mode toggle** for consistent testing and analysis
 - **Comprehensive data tables** with proper percentage formatting
 - **Historical comparison dashboard** showing analysis trends and changes
 - **Export capabilities** for portfolio results and analysis
 - **Mobile-responsive design** for multi-device access
 
 ### Recent Major Updates ✅ COMPLETED
+
+#### V2.2 - Deterministic Mode Enhancement (2025-07-05)
+- **🔧 Deterministic Mode Option** - User-controlled consistent analysis results
+- **🎯 Normalized Data Fetching** - Consistent timestamps and date handling
+- **📊 Weekend Date Normalization** - Uses Friday baseline for weekend analysis
+- **⚡ API Call Standardization** - Reduced timing-based variations in data fetching
+- **🧪 Enhanced Testing** - Verified consistent results across multiple runs
 
 #### V2.1 - Historical Comparison Feature (2024-12-27)
 - **📈 "Changes Since Last Analysis"** - Track portfolio evolution over time
@@ -349,13 +358,14 @@ User Interface & Educational Content
 
 The Portfolio Management Suite v2.0 is a **fully functional, institutional-quality multi-feature platform** with both tactical and quality investment approaches:
 
-### 🎯 Core Achievements - V2.1
+### 🎯 Core Achievements - V2.2
 - ✅ **Multi-feature architecture** with tactical momentum and quality stock analysis
 - ✅ **100% Tactical Tracker Parity** - New modular component produces identical results to original
 - ✅ **Advanced momentum screening** with strict tactical rules enforcement
 - ✅ **Intelligent defensive cash allocation** (0-30% based on market regime)
 - ✅ **Professional portfolio management** with two-tier position sizing
 - ✅ **Historical comparison tracking** with "Changes Since Last Analysis" feature
+- ✅ **Deterministic mode option** for consistent, reproducible analysis results
 - ✅ **Long-term quality stock analysis** with fundamental screening
 - ✅ **Real-time market health monitoring** with 6-signal detection system
 - ✅ **Production-ready Streamlit interface** with feature selection and educational UI
@@ -490,4 +500,66 @@ This feature transforms the tactical tracker from a point-in-time analysis tool 
 
 ---
 
-_Last updated: 2024-12-27 - V2.1 Multi-Feature Suite with Historical Comparison Feature Added_
+## 🔧 Deterministic Mode Feature
+
+The tactical tracker includes a **Deterministic Mode** option that ensures consistent, reproducible analysis results across multiple runs.
+
+### 🎯 Purpose and Benefits
+- **Consistent Testing**: Enables reliable backtesting and strategy validation
+- **Reproducible Results**: Same parameters produce identical portfolio recommendations
+- **Professional Analysis**: Eliminates timing-based variations in screening
+- **Quality Assurance**: Facilitates systematic testing and verification
+
+### ⚙️ Technical Implementation
+
+#### Data Normalization
+- **Consistent Timestamps**: Uses normalized daily timestamps (midnight baseline)
+- **Weekend Handling**: Automatically uses Friday as baseline for weekend analysis
+- **Business Day Logic**: Accounts for market closures and holidays
+- **API Standardization**: Consistent parameters for data fetching calls
+
+#### User Interface
+- **Advanced Settings Toggle**: Located in sidebar Advanced Settings section
+- **Diagnostic Information**: Shows when deterministic mode is active
+- **Real-time Feedback**: Confirms consistent data snapshots in use
+- **Educational Tooltips**: Explains the purpose and benefits
+
+### 📊 How It Works
+
+#### Date Management
+```python
+# Normalizes analysis date to consistent baseline
+end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+if end_date.weekday() >= 5:  # Weekend
+    days_back = end_date.weekday() - 4
+    end_date = end_date - timedelta(days=days_back)
+```
+
+#### Consistent Data Fetching
+- **Standardized API calls** with progress suppression
+- **Fixed date ranges** for weekly return calculations  
+- **Normalized market data** timestamps
+- **Reduced timing variations** in network requests
+
+### 🎯 When to Use
+
+#### Recommended Scenarios
+- **Backtesting strategies** - Verify historical performance
+- **System validation** - Ensure algorithm consistency
+- **Testing parameter changes** - Compare results reliably
+- **Professional analysis** - Generate consistent reports
+
+#### Live Trading Scenarios
+- **After-hours analysis** - Consistent results when markets closed
+- **Strategy development** - Reliable testing environment
+- **Performance validation** - Verify system accuracy
+- **Quality assurance** - Systematic testing protocols
+
+### ✅ Verification Results
+Independent testing confirms that deterministic mode produces **100% identical results** across multiple runs with the same parameters, eliminating the random variations that previously occurred in portfolio screening.
+
+This feature ensures the tactical tracker maintains institutional-quality reliability while preserving the sophisticated momentum analysis capabilities.
+
+---
+
+_Last updated: 2025-07-05 - V2.2 Multi-Feature Suite with Deterministic Mode Enhancement_
