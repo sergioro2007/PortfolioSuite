@@ -1,6 +1,6 @@
-# Portfolio Management Suite v2.0
+# Portfolio Management Suite v2.1
 
-A comprehensive multi-feature investment analysis platform with professional-grade portfolio management tools for both tactical and long-term investment strategies.
+A comprehensive multi-feature investment analysis platform with professional-grade portfolio management tools for tactical, long-term, and options trading strategies.
 
 ## 🎯 Features Overview
 
@@ -13,6 +13,8 @@ A comprehensive multi-feature investment analysis platform with professional-gra
 - Two-tier position sizing (Strong Buy/Moderate Buy)
 - Weekly return targets (0.5-3% configurable)
 - Portfolio of up to 25 positions with high turnover
+- Historical comparison feature ("Changes Since Last Analysis")
+- Deterministic mode for consistent, reproducible results
 
 ### 🛡️ Long-Term Quality Stocks Tracker  
 **Purpose**: Conservative anchor portfolio for long-term investors
@@ -23,6 +25,17 @@ A comprehensive multi-feature investment analysis platform with professional-gra
 - 5-year performance validation
 - Minimal weekly rotation
 - Portfolio of 10-15 quality stocks for stability
+
+### 🎯 Options Trading Tracker *(NEW)*
+**Purpose**: Weekly income generation through systematic options strategies
+
+- Bull Put Spreads, Bear Call Spreads, Broken Wing Butterflies, Iron Condors
+- Weekly $500+ income targeting with defined-risk strategies
+- 1-week price predictions using technical indicators (RSI, MACD, Bollinger Bands)
+- Automated trade evaluation with Hold/Close/Adjust recommendations
+- Complete trade memory and P&L tracking
+- Strategy performance analytics and optimization
+- Integration with OptionStrat for trade visualization
 
 ## 🚀 Quick Start
 
@@ -35,14 +48,14 @@ cd Portfolio-Management-Suite
 pip install -r requirements.txt
 ```
 
-### Option 1: Using the New Multi-Feature Launcher (Recommended)
+### Option 1: Complete Portfolio Suite (Recommended)
 ```bash
-./run_suite.sh
+./run_portfolio_suite.sh
 ```
 
-### Option 2: Manual Launch
+### Option 2: Manual Launch - Multi-Feature App
 ```bash
-# Run the multi-feature application
+# Run the complete multi-feature application
 streamlit run main_app.py
 ```
 
@@ -94,6 +107,22 @@ streamlit run streamlit_app.py
    - Track consistency in quality metrics
    - Review performance vs benchmarks
 
+### 🎯 Options Trading Tracker Usage
+1. **Configure Options Strategies**:
+   - Select desired strategy type(s): Bull Put Spread, Bear Call Spread, Iron Condor, Broken Wing Butterfly
+   - Set target weekly income (recommended: $500+)
+   - Adjust position size and risk parameters
+
+2. **Run Options Screening**:
+   - Click "Run Options Screening" to find suitable trades
+   - Review 1-week price predictions and technical indicator analysis
+   - Examine trade candidates with detailed profit/loss projections
+
+3. **Manage Options Trades**:
+   - Track open positions and monitor P&L
+   - Receive automated recommendations to Hold/Close/Adjust trades
+   - Analyze strategy performance and make adjustments as needed
+
 ## 🔧 Features
 
 ### ⚡ Tactical Momentum Features
@@ -112,6 +141,13 @@ streamlit run streamlit_app.py
 - ✅ **Low volatility focus**
 - ✅ **Dividend aristocrat emphasis**
 - ✅ **Weekly tracking system**
+
+### 🎯 Options Trading Features
+- ✅ **Multiple options strategies**: Bull Put Spreads, Bear Call Spreads, Iron Condors, Broken Wing Butterflies
+- ✅ **Weekly income targeting** with automated trade evaluation
+- ✅ **1-week price predictions** using technical indicators
+- ✅ **Complete trade memory and P&L tracking**
+- ✅ **Integration with OptionStrat** for trade visualization
 
 ## 📊 Market Health Monitoring
 

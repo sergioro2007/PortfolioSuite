@@ -81,7 +81,8 @@ def main():
         [
             "🏠 Home - Feature Overview",
             "⚡ Tactical Momentum Tracker", 
-            "🛡️ Long-Term Quality Stocks"
+            "🛡️ Long-Term Quality Stocks",
+            "🎯 Options Trading Tracker"
         ],
         index=0
     )
@@ -93,6 +94,8 @@ def main():
         show_tactical_tracker()
     elif feature == "🛡️ Long-Term Quality Stocks":
         show_quality_tracker()
+    elif feature == "🎯 Options Trading Tracker":
+        show_options_tracker()
 
 def show_home_page():
     """Display the home page with feature overview"""
@@ -153,6 +156,31 @@ def show_home_page():
         **Turnover**: Very Low (quarterly review)
         """)
     
+    # Third column for options tracker
+    st.markdown("---")
+    st.markdown("### 🎯 Options Trading Tracker")
+    st.markdown("""
+    **Purpose**: Weekly income generation through options strategies
+    
+    **Best For**:
+    - Options traders seeking consistent income
+    - Weekly $500+ income targets
+    - Systematic strategy execution
+    - Risk-managed options trading
+    
+    **Key Features**:
+    - 🎯 Bull Put & Bear Call Spreads
+    - 🦋 Broken Wing Butterflies & Iron Condors
+    - 📊 1-week price predictions with technical indicators
+    - 💰 Trade P&L tracking and analysis
+    - 🔍 Automated trade evaluation (Hold/Close/Adjust)
+    - 📈 Strategy performance analytics
+    
+    **Target**: $500/week income
+    **Risk Level**: Moderate (defined-risk strategies)
+    **Time Commitment**: Weekly management
+    """)
+    
     # Usage guidance
     st.markdown("---")
     st.markdown("## 🎯 How to Use This Suite")
@@ -161,14 +189,15 @@ def show_home_page():
     ### 🔄 Complementary Strategies
     These tools are designed to work together:
     
-    - **🛡️ Core Holdings (60-80%)**: Use Long-Term Quality Stocks for your portfolio foundation
-    - **⚡ Tactical Allocation (20-40%)**: Use Momentum Tracker for opportunistic positions
+    - **🛡️ Core Holdings (50-70%)**: Use Long-Term Quality Stocks for your portfolio foundation
+    - **⚡ Tactical Allocation (20-30%)**: Use Momentum Tracker for opportunistic positions  
+    - **🎯 Income Generation (10-20%)**: Use Options Tracker for weekly income
     - **📊 Market Conditions**: Switch emphasis based on market regime
     
     ### 📈 Market Regime Guidance
-    - **🟢 Bull Markets**: Emphasize Momentum Tracker (higher tactical allocation)
-    - **🔴 Bear Markets**: Emphasize Quality Stocks (defensive positioning)
-    - **🟡 Uncertain Markets**: Balanced approach with both tools
+    - **🟢 Bull Markets**: Emphasize Momentum + Options income strategies
+    - **🔴 Bear Markets**: Emphasize Quality Stocks + Defensive options
+    - **🟡 Uncertain Markets**: Balanced approach with all three tools
     """)
     
     # Getting started
@@ -176,7 +205,7 @@ def show_home_page():
     st.info("""
     **🚀 Getting Started:**
     1. Choose your analysis tool from the sidebar
-    2. Configure your screening parameters
+    2. Configure your screening parameters  
     3. Run analysis and review recommendations
     4. Monitor and adjust based on market conditions
     """)
@@ -255,6 +284,27 @@ def show_quality_tracker():
         
         if st.button("🔄 Run Quality Analysis (Coming Soon)"):
             st.info("Quality analysis functionality will be implemented in the next version.")
+
+def show_options_tracker():
+    """Load and display the options trading tracker"""
+    try:
+        # Import the options tracker functionality
+        from options_tracker_ui import render_options_tracker
+        render_options_tracker()
+    except ImportError:
+        st.error("""
+        **Options Tracker Module Not Found**
+        
+        The options trading tracker functionality requires the options_tracker module.
+        Please ensure both options_tracker.py and options_tracker_ui.py are available.
+        """)
+        st.markdown("""
+        **Manual Setup Required:**
+        
+        To use the Options Trading Tracker, you need to:
+        1. Install required dependencies: `pip install yfinance pandas numpy`
+        2. Ensure options_tracker.py and options_tracker_ui.py are in your project directory
+        """)
 
 if __name__ == "__main__":
     main()
