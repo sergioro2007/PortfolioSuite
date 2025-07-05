@@ -7,10 +7,10 @@ from unittest.mock import patch, MagicMock
 import sys
 import os
 
-# Add the parent directory to sys.path to import streamlit_app
+# Add the parent directory to sys.path to import src.streamlit_app as streamlit_app
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from streamlit_app import PortfolioTracker
+from src.streamlit_app import PortfolioTracker
 
 
 class TestDefensiveCashAllocation(unittest.TestCase):

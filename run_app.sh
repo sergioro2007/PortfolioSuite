@@ -61,8 +61,8 @@ else
 fi
 
 # Check if the main app file exists
-if [ ! -f "streamlit_app.py" ]; then
-    echo -e "${RED}❌ Error: streamlit_app.py not found in current directory${NC}"
+if [ ! -f "src/streamlit_app.py" ]; then
+    echo -e "${RED}❌ Error: streamlit_app.py not found in src/ directory${NC}"
     echo -e "${RED}   Make sure you're running this script from the project directory${NC}"
     exit 1
 fi
@@ -74,7 +74,7 @@ echo -e "${YELLOW}💡 Press Ctrl+C to stop the application${NC}"
 echo ""
 
 # Run the Streamlit app
-streamlit run streamlit_app.py --server.port 8501 --server.address localhost
+streamlit run src/streamlit_app.py --server.port 8501 --server.address localhost
 
 echo ""
 echo -e "${BLUE}👋 Application stopped. Thank you for using Tactical Momentum Portfolio Tracker!${NC}"

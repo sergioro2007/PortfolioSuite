@@ -62,7 +62,7 @@ class PortfolioTracker:
     def __init__(self):
         self.portfolio = {}
         self.market_data = {}
-        self.results_file = "portfolio_results.pkl"
+        self.results_file = "data/portfolio_results.pkl"
         
     def passes_filters(self, result: Dict, min_rs_score: float = 30, min_weekly_target: float = 1.5) -> bool:
         """Check if a ticker passes tactical momentum filters with user-defined thresholds"""

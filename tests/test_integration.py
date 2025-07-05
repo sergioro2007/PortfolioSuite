@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 # Add parent directory to path to import the main module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from streamlit_app import PortfolioTracker
+from src.streamlit_app import PortfolioTracker
 
 class TestIntegrationWorkflow(unittest.TestCase):
     """Test complete application workflows"""

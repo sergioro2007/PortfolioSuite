@@ -55,6 +55,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Data files (trading history and portfolios)
+data/*.pkl
+
 # Temporary files
 *.tmp
 *.temp

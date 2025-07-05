@@ -37,6 +37,88 @@ A comprehensive multi-feature investment analysis platform with professional-gra
 - Strategy performance analytics and optimization
 - Integration with OptionStrat for trade visualization
 
+### 🔧 Advanced Features
+
+#### 🤖 Deterministic Mode
+- **Consistent, reproducible analysis** across multiple runs
+- **Weekend date normalization** (uses Friday baseline)
+- **Standardized API calls** with consistent timestamps
+- **Professional backtesting** capabilities for strategy validation
+- **Toggle control** in Advanced Settings for testing vs. live analysis
+
+#### 🛡️ Intelligent Defensive Cash Allocation
+**Automatic market regime detection** monitoring 6 real-time signals:
+1. **VIX > 30** (fear index threshold)
+2. **VIX Rising Trend** (increasing market fear)  
+3. **SPY below 20-day MA** (market weakness)
+4. **Market Breadth < 50%** (few stocks advancing)
+5. **High Volatility > 2.5%** (excessive daily price swings)
+6. **Negative Momentum** (10-day < 30-day moving averages)
+
+**Dynamic cash allocation by market regime:**
+- **🟢 AGGRESSIVE** (0-1 signals): **0% cash** - Full stock allocation
+- **🟠 CAUTIOUS** (2 signals): **5% cash** - Small defensive buffer
+- **🟡 DEFENSIVE** (3 signals): **15% cash** - Moderate risk reduction
+- **🔴 HIGHLY_DEFENSIVE** (4+ signals): **30% cash** - Significant capital preservation
+
+#### 📊 Two-Tier Position Sizing System
+- **Strong Buy positions** (8-20% allocation): Momentum score >15 AND weekly return >2.0%
+- **Moderate Buy positions** (3-12% allocation): Momentum score >10 (excluding strong buys)
+- **Integer-only percentages** for practical implementation
+- **Automatic scaling to 100%** with priority-based adjustments
+
+#### ⚡ Strict Tactical Momentum Rules
+- **Pre-qualification requirement**: 3 of 4 weeks >2% gain AND average weekly >1.5%
+- **Market cap threshold**: >$5B for institutional-quality liquidity
+- **Daily reevaluation logic**: 
+  - Drop >3% → Review/Exit
+  - Drop >1.5% → Watch closely
+  - Gain >2% → Strong Momentum
+
+#### 📈 Historical Comparison Tracking
+- **"Changes Since Last Analysis"** feature with `data/portfolio_results.pkl` storage
+- **Comprehensive comparison metrics**: new entries, dropped stocks, performance changes
+- **Actionable recommendations** based on historical performance patterns
+- **Portfolio evolution tracking** over time
+
+## � Project Structure
+
+The Portfolio Management Suite is organized with a clean separation of concerns:
+
+```
+Portfolio-Management-Suite/
+├── src/                          # 📦 Source Code
+│   ├── __init__.py              # Package initialization
+│   ├── main_app.py              # 🎯 Main Streamlit application
+│   ├── tactical_tracker.py     # ⚡ Tactical momentum tracking
+│   ├── quality_tracker.py      # 🛡️ Long-term quality stocks
+│   ├── options_tracker.py      # 🎯 Options trading strategies
+│   ├── options_tracker_ui.py   # 🖥️ Options UI components
+│   ├── streamlit_app.py        # 📊 Legacy Streamlit app
+│   └── options_analyzer.py     # 🔍 Options analysis utilities
+├── tests/                       # 🧪 Test Suite
+│   ├── master_test_runner.py   # Main test orchestrator
+│   ├── test_*.py               # Test files by category
+│   ├── debug_*.py              # Debug and verification scripts
+│   └── run_*.py                # Various test runners
+├── data/                        # 📊 Data Storage
+│   ├── portfolio_results.pkl   # Historical analysis results
+│   └── options_trades.pkl      # Options trade history
+├── run_portfolio_suite.sh      # 🚀 Main application launcher
+├── run_tests.py               # 🧪 Test launcher (from root)
+├── requirements.txt           # 📋 Python dependencies
+└── README.md                  # 📖 This documentation
+```
+
+### Key Benefits of This Structure
+
+- **Clean Separation**: Source code in `src/`, tests in `tests/`, data in `data/`, configuration in root
+- **Easy Navigation**: All related files grouped together
+- **Import Clarity**: Clear import paths and module organization
+- **Data Organization**: Historical data and trade records stored separately in `data/`
+- **Testing**: Comprehensive test suite with organized categories
+- **Deployment**: Simple launch scripts for different use cases
+
 ## 🚀 Quick Start
 
 ### Installation
@@ -48,23 +130,25 @@ cd Portfolio-Management-Suite
 pip install -r requirements.txt
 ```
 
-### Option 1: Complete Portfolio Suite (Recommended)
+### Running the Application
+
+#### Option 1: Complete Portfolio Suite (Recommended)
 ```bash
 ./run_portfolio_suite.sh
 ```
 
-### Option 2: Manual Launch - Multi-Feature App
+#### Option 2: Direct Streamlit Launch
 ```bash
 # Run the complete multi-feature application
-streamlit run main_app.py
+streamlit run src/main_app.py
 ```
 
-### Option 3: Legacy Tactical Tracker Only
+#### Option 3: Legacy Tactical Tracker Only
 ```bash
 # For the original tactical momentum tracker only
 ./run_app.sh
 # or
-streamlit run streamlit_app.py
+streamlit run src/streamlit_app.py
 ```
 
 ## 📱 Using the Application
@@ -79,17 +163,23 @@ streamlit run streamlit_app.py
    - Set minimum RS score (20-100)
    - Set minimum weekly return target (0.5%-5.0%)
    - Adjust allocation weights and portfolio size
+   - **Enable/disable deterministic mode** (Advanced Settings)
+   - **Toggle defensive cash allocation** (Allow Defensive Cash checkbox)
 
 2. **Run Screening**:
    - Click "Run Screening" to discover qualified tickers
-   - Review market health indicators and defensive signals
+   - **Automatic pre-qualification**: Only tickers meeting 3 of 4 weeks >2% gain AND avg >1.5% are scored
+   - Review market health indicators and **6-signal defensive score**
+   - **View real-time market regime classification** (Aggressive/Cautious/Defensive/Highly Defensive)
    - Examine results with detailed metrics and reasoning
 
 3. **Monitor Portfolio**:
-   - Track market health indicators and regime classification
-   - Get buy/sell/hold recommendations with automatic cash allocation
+   - Track **dynamic cash allocation** (0-30%) based on market conditions
+   - **Two-tier position sizing**: Strong Buys (8-20%) vs Moderate Buys (3-12%)
+   - Get buy/sell/hold recommendations with **automatic integer percentage allocation**
    - Monitor real-time performance and allocation percentages
-   - View historical comparison with "Changes Since Last Analysis"
+   - **Review "Changes Since Last Analysis"** for historical comparison tracking
+   - **Daily reevaluation alerts** for positions dropping >1.5% or >3%
 
 ### 🛡️ Long-Term Quality Stocks Usage
 1. **Configure Quality Filters**:
@@ -126,13 +216,17 @@ streamlit run streamlit_app.py
 ## 🔧 Features
 
 ### ⚡ Tactical Momentum Features
-- ✅ **Automated ticker discovery** from major indices
-- ✅ **User-configurable screening parameters**
-- ✅ **Real-time market health monitoring**
-- ✅ **Advanced technical analysis**
-- ✅ **Intelligent defensive cash allocation**
-- ✅ **Historical comparison tracking** ("Changes Since Last Analysis")
-- ✅ **Risk management tools**
+- ✅ **Automated ticker discovery** from major indices (500+ tickers screened)
+- ✅ **Strict pre-qualification rules**: 3 of 4 weeks >2% AND avg weekly >1.5%
+- ✅ **6-signal market health monitoring** with real-time defensive scoring
+- ✅ **Dynamic cash allocation** (0-30%) based on market regime detection
+- ✅ **Two-tier position sizing** with user-configurable allocation weights (8-20% / 3-12%)
+- ✅ **Integer-only percentages** for practical implementation
+- ✅ **Deterministic mode** for consistent, reproducible analysis
+- ✅ **Historical comparison tracking** with "Changes Since Last Analysis"
+- ✅ **Daily reevaluation logic** with automatic position monitoring
+- ✅ **Advanced technical analysis** (RSI, MACD, moving averages)
+- ✅ **Risk management tools** with stop-loss suggestions
 
 ### 🛡️ Quality Stocks Features  
 - ✅ **Fundamental quality screening**
@@ -208,7 +302,13 @@ The suite provides sophisticated allocation management across both strategies:
 - **Web browser** for the Streamlit interface
 
 ### Dependencies
-All required packages are listed in `requirements.txt`:
+All required packages are listed in `requirements.txt` for easy installation and consistent environments:
+
+```bash
+pip install -r requirements.txt
+```
+
+**Core Dependencies:**
 - `streamlit` - Web application framework
 - `yfinance` - Market data retrieval
 - `pandas` - Data manipulation and analysis
@@ -216,54 +316,88 @@ All required packages are listed in `requirements.txt`:
 - `requests` - HTTP requests for web scraping
 - `beautifulsoup4` - HTML parsing for market data
 
-## 🧪 Testing & Verification
+**Why requirements.txt?**
+- **Consistent Environment**: Ensures all users have the same package versions
+- **Easy Deployment**: Single command installs all dependencies
+- **Version Control**: Tracks specific package versions for stability
+- **Professional Standard**: Industry best practice for Python projects
 
-The project includes comprehensive testing to ensure system reliability and parity:
+## 🧪 Testing
 
-### Test Suite Structure
-- **Location**: `tests/` directory
-- **Runner**: `python tests/run_tests.py` (basic unit tests)
-- **System Verification**: `python tests/run_system_verification.py` (comprehensive)
-- **Coverage**: 80%+ test coverage across all modules
+The Portfolio Management Suite includes a comprehensive testing framework to ensure all features work correctly.
 
-### Test Categories
-- **Unit Tests**: Core functionality testing (`test_*.py`)
-- **Integration Tests**: End-to-end workflow testing
-- **System Parity Tests**: Ensures new tracker matches original exactly
-- **System Health Tests**: Performance, dependencies, error handling
-- **Performance Tests**: Validates acceptable response times
+### Test Organization
+
+All test files and testing utilities are organized in the `tests/` folder:
+
+```
+tests/
+├── master_test_runner.py      # Main test orchestrator
+├── test_option_pricing*.py    # Option pricing accuracy tests
+├── test_optionstrat_url*.py   # URL generation tests  
+├── test_ui*.py               # User interface tests
+├── test_integration*.py      # End-to-end integration tests
+├── test_core.py              # Core functionality tests
+├── test_portfolio.py         # Portfolio management tests
+├── debug_*.py                # Debug and verification scripts
+└── run_*.py                  # Various test runners
+```
 
 ### Running Tests
 
-#### Basic Unit Tests
+#### From Root Directory (Recommended)
 ```bash
-python tests/run_tests.py
+# Quick test (core functionality only)
+python run_tests.py --quick
+
+# Full test suite (all tests including integration)
+python run_tests.py --full
+
+# Specific category
+python run_tests.py --category pricing
+python run_tests.py --category urls
+python run_tests.py --category ui
+
+# Verbose output
+python run_tests.py --verbose
 ```
 
-#### Comprehensive System Verification
+#### From Tests Directory
 ```bash
-python tests/run_system_verification.py
+cd tests/
+
+# Using master test runner directly
+python master_test_runner.py
+python master_test_runner.py --full
+python master_test_runner.py --quick
+
+# Shell script wrapper
+./test.sh
+./test.sh full
+./test.sh verbose
 ```
-This runs all test suites including:
-- Core unit tests
-- System parity verification
-- System health checks
-- Integration tests
 
-#### UI Verification
-```bash
-python final_ui_test.py
-```
-Launches both applications for side-by-side comparison.
+### Test Categories
 
-### System Verification Features
-The system verification tests capture essential logic for ongoing validation:
-- **Parity Testing**: Ensures identical results between original and new tactical trackers
-- **Health Monitoring**: Verifies all dependencies, imports, and performance benchmarks
-- **Error Handling**: Tests resilience to data issues and edge cases
-- **End-to-End Flow**: Validates complete workflows from discovery to recommendations
+**Pricing Tests**: Verify option pricing accuracy against real market data
+- Real-time price fetching from yfinance
+- Strike selection algorithms
+- Spread credit calculations
 
-These tests should be run regularly to ensure continued system health and parity.
+**URL Generation Tests**: Ensure OptionStrat integration works correctly
+- Proper SELL/BUY indicators
+- Decimal strike handling
+- Strategy-specific URL formats
+
+**UI Tests**: Validate user interface components
+- Options tracker display
+- Trade suggestion formatting
+- Interactive features
+
+**Integration Tests**: End-to-end workflow testing
+- Complete trade suggestion pipeline
+- Multi-ticker processing
+- Error handling and recovery
 
 ## 📝 Project Status
 
@@ -289,19 +423,19 @@ These tests should be run regularly to ensure continued system health and parity
 ### 🔧 Technical Achievement:
 The new tactical tracker module maintains 100% backward compatibility with the original `streamlit_app.py` while providing the modular, extensible architecture of the Portfolio Management Suite v2.0. All edge cases, filtering logic, and scoring algorithms have been verified to produce identical results.
 
-For detailed requirements and technical specifications, see `tactical_portfolio_app_requirements.md`.
-
 ## 📁 Project Structure
 
 ### Essential Files (Main Directory)
 - `main_app.py` - Multi-feature portfolio management suite launcher
 - `tactical_tracker.py` - Modular tactical momentum tracker (with historical comparison)
 - `streamlit_app.py` - Legacy tactical tracker (reference implementation)
-- `portfolio_results.pkl` - Historical analysis data for comparison feature
 - `requirements.txt` - Python package dependencies
 - `run_suite.sh` / `run_suite_edge.sh` - Application launch scripts
 - `README.md` - Main documentation
-- `tactical_portfolio_app_requirements.md` - Technical specifications
+
+### Data Storage
+- `data/portfolio_results.pkl` - Historical analysis data for comparison feature
+- `data/options_trades.pkl` - Options trade history (auto-created)
 
 ### Supporting Directories
 - `tests/` - Core test suite for validation and quality assurance
@@ -312,4 +446,4 @@ For detailed project structure and organization, see `PROJECT_STATUS.md`.
 
 ---
 
-*Last updated: December 27, 2024 - Historical Comparison Feature and Documentation Updates*
+*Last updated: July 5, 2025 - Source Code Reorganization and Comprehensive Documentation Update*

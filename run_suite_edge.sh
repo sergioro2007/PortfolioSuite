@@ -33,7 +33,7 @@ echo "Press Ctrl+C to stop the application"
 echo ""
 
 # Run with specific settings for Edge compatibility
-streamlit run main_app.py \
+streamlit run src/main_app.py \
   --server.port 8503 \
   --server.headless false \
   --server.enableCORS false \

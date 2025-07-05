@@ -205,7 +205,7 @@ class PortfolioTracker:
     def __init__(self):
         self.portfolio = {}
         self.market_data = {}
-        self.results_file = "portfolio_results.pkl"
+        self.results_file = "data/portfolio_results.pkl"
     
     def save_results(self, results: List[Dict], timestamp: datetime = None):
         """Save analysis results with timestamp for historical comparison"""

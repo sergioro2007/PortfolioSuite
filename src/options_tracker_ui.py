@@ -8,7 +8,123 @@ Streamlit interface for the Options Trading Tracker
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import sys
+import os
+
+# Add the src directory to Python path so modules can find each other
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from options_tracker import OptionsTracker
+
+def generate_optionstrat_url(suggestion: dict) -> str:
+    """Generate the correct OptionStrat URL for a trade suggestion"""
+    ticker = suggestion['ticker']
+    strategy = suggestion['strategy']
+    
+    # Base URL
+    base_url = "https://optionstrat.com/build/"
+    
+    if strategy == 'Bull Put Spread':
+        # Format: /bull-put-spread/TICKER/-.TICKER250801P575,.TICKER250801P580
+        # SELL higher strike put, BUY lower strike put
+        short_strike = suggestion['short_strike']  # SELL (higher strike)
+        long_strike = suggestion['long_strike']    # BUY (lower strike)
+        exp_date = suggestion.get('expiration', '2025-08-01')
+        
+        # Convert YYYY-MM-DD to YYMMDD format for option symbols
+        exp_obj = datetime.strptime(exp_date, '%Y-%m-%d')
+        exp_symbol = exp_obj.strftime('%y%m%d')  # 250801 instead of 20250801
+        
+        # OptionStrat format: SELL gets minus, BUY doesn't - preserve decimals
+        short_symbol = f"-.{ticker}{exp_symbol}P{short_strike:g}"  # SELL (minus sign)
+        long_symbol = f".{ticker}{exp_symbol}P{long_strike:g}"     # BUY (no minus)
+        url = f"{base_url}bull-put-spread/{ticker}/{short_symbol},{long_symbol}"
+        
+    elif strategy == 'Bear Call Spread':
+        # Format: /bear-call-spread/TICKER/-.TICKER250801C660,.TICKER250801C680
+        # SELL lower strike call, BUY higher strike call
+        short_strike = suggestion['short_strike']  # SELL (lower strike)
+        long_strike = suggestion['long_strike']    # BUY (higher strike)
+        exp_date = suggestion.get('expiration', '2025-08-01')
+        
+        # Convert YYYY-MM-DD to YYMMDD format for option symbols
+        exp_obj = datetime.strptime(exp_date, '%Y-%m-%d')
+        exp_symbol = exp_obj.strftime('%y%m%d')  # 250801 instead of 20250801
+        
+        # OptionStrat format: SELL gets minus, BUY doesn't - preserve decimals
+        short_symbol = f"-.{ticker}{exp_symbol}C{short_strike:g}"  # SELL (minus sign)
+        long_symbol = f".{ticker}{exp_symbol}C{long_strike:g}"     # BUY (no minus)
+        url = f"{base_url}bear-call-spread/{ticker}/{short_symbol},{long_symbol}"
+        
+    elif strategy == 'Iron Condor':
+        # OptionStrat Iron Condor format: .SPY250801P575,-.SPY250801P590,-.SPY250801C660,.SPY250801C680
+        put_long = suggestion['put_long_strike']
+        put_short = suggestion['put_short_strike'] 
+        call_short = suggestion['call_short_strike']
+        call_long = suggestion['call_long_strike']
+        exp_date = suggestion.get('expiration', '2025-08-01')
+        
+        # Convert YYYY-MM-DD to YYMMDD format for option symbols
+        exp_obj = datetime.strptime(exp_date, '%Y-%m-%d')
+        exp_symbol = exp_obj.strftime('%y%m%d')  # 250801 instead of 20250801
+        
+        # Create option symbols in OptionStrat format - preserve decimals for half-dollar strikes
+        put_long_symbol = f".{ticker}{exp_symbol}P{put_long:g}"    # Buy put (long)
+        put_short_symbol = f"-.{ticker}{exp_symbol}P{put_short:g}"  # Sell put (short, has minus)
+        call_short_symbol = f"-.{ticker}{exp_symbol}C{call_short:g}" # Sell call (short, has minus)
+        call_long_symbol = f".{ticker}{exp_symbol}C{call_long:g}"   # Buy call (long)
+        
+        # Combine in order: PUT_LONG,PUT_SHORT,CALL_SHORT,CALL_LONG
+        symbols = f"{put_long_symbol},{put_short_symbol},{call_short_symbol},{call_long_symbol}"
+        url = f"{base_url}iron-condor/{ticker}/{symbols}"
+        
+    elif strategy == 'Short Strangle':
+        # Format: /short-strangle/TICKER/.TICKER250801P575,-.TICKER250801C660
+        put_strike = suggestion.get('put_strike', suggestion.get('short_put_strike'))
+        call_strike = suggestion.get('call_strike', suggestion.get('short_call_strike'))
+        exp_date = suggestion.get('expiration', '2025-08-01')
+        
+        # Convert YYYY-MM-DD to YYMMDD format for option symbols
+        exp_obj = datetime.strptime(exp_date, '%Y-%m-%d')
+        exp_symbol = exp_obj.strftime('%y%m%d')  # 250801 instead of 20250801
+        
+        # OptionStrat format: .TICKER250801P575,-.TICKER250801C660 - preserve decimals
+        put_symbol = f".{ticker}{exp_symbol}P{put_strike:g}"   # Sell put (short)
+        call_symbol = f"-.{ticker}{exp_symbol}C{call_strike:g}" # Sell call (short)
+        url = f"{base_url}short-strangle/{ticker}/{put_symbol},{call_symbol}"
+        
+    elif strategy == 'Cash Secured Put':
+        # Format: /cash-secured-put/TICKER/.TICKER250801P575
+        strike = suggestion.get('strike', suggestion.get('put_strike'))
+        exp_date = suggestion.get('expiration', '2025-08-01')
+        
+        # Convert YYYY-MM-DD to YYMMDD format for option symbols
+        exp_obj = datetime.strptime(exp_date, '%Y-%m-%d')
+        exp_symbol = exp_obj.strftime('%y%m%d')  # 250801 instead of 20250801
+        
+        # OptionStrat format: .TICKER250801P575 (sell put) - preserve decimals
+        put_symbol = f".{ticker}{exp_symbol}P{strike:g}"
+        url = f"{base_url}cash-secured-put/{ticker}/{put_symbol}"
+        
+    elif strategy == 'Covered Call':
+        # Format: /covered-call/TICKER/-.TICKER250801C575
+        strike = suggestion.get('strike', suggestion.get('call_strike'))
+        exp_date = suggestion.get('expiration', '2025-08-01')
+        
+        # Convert YYYY-MM-DD to YYMMDD format for option symbols
+        exp_obj = datetime.strptime(exp_date, '%Y-%m-%d')
+        exp_symbol = exp_obj.strftime('%y%m%d')  # 250801 instead of 20250801
+        
+        # OptionStrat format: -.TICKER250801C575 (sell call) - preserve decimals
+        call_symbol = f"-.{ticker}{exp_symbol}C{strike:g}"
+        url = f"{base_url}covered-call/{ticker}/{call_symbol}"
+        
+    else:
+        # Fallback to generic strategy page
+        strategy_name = strategy.lower().replace(' ', '-')
+        url = f"{base_url}{strategy_name}/{ticker}"
+    
+    return url
 
 def render_options_tracker():
     """Main Options Trading Tracker interface"""
@@ -164,8 +280,16 @@ def render_new_trades(tracker: OptionsTracker):
                                 'Action': leg['action'],
                                 'Type': leg['type'],
                                 'Strike': f"${leg['strike']:.2f}",
-                                'Est. Price': f"${leg['price']:.2f}"
+                                'Est. Price': f"${leg['price']:.2f}",
+                                'Strike_Sort': leg['strike']  # For sorting by strike price
                             })
+                        
+                        # Sort legs by strike price (smallest on top)
+                        legs_data.sort(key=lambda x: x['Strike_Sort'])
+                        
+                        # Remove the sort key before displaying
+                        for leg in legs_data:
+                            del leg['Strike_Sort']
                         
                         legs_df = pd.DataFrame(legs_data)
                         st.dataframe(legs_df, use_container_width=True, hide_index=True)
@@ -187,8 +311,8 @@ def render_new_trades(tracker: OptionsTracker):
                     st.metric("Max Loss", f"${suggestion['max_loss']:.2f}")
                     st.metric("Profit Target", f"${suggestion['profit_target']:.2f}")
                 
-                # OptionStrat link
-                optionstrat_url = f"https://optionstrat.com/build/{suggestion['strategy'].lower().replace(' ', '-')}/{suggestion['ticker']}"
+                # OptionStrat link - Generate correct URL for the suggested trade
+                optionstrat_url = generate_optionstrat_url(suggestion)
                 st.markdown(f"[📊 View on OptionStrat]({optionstrat_url})")
                 
                 # Add trade button

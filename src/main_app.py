@@ -214,6 +214,9 @@ def show_tactical_tracker():
     """Load and display the tactical momentum tracker"""
     try:
         # Import the tactical tracker functionality
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from tactical_tracker import run_tactical_tracker
         run_tactical_tracker()
     except ImportError:
@@ -242,6 +245,9 @@ def show_quality_tracker():
     """Load and display the long-term quality stocks tracker"""
     try:
         # Import the quality tracker functionality
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from quality_tracker import run_quality_tracker
         run_quality_tracker()
     except ImportError:
@@ -289,6 +295,9 @@ def show_options_tracker():
     """Load and display the options trading tracker"""
     try:
         # Import the options tracker functionality
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from options_tracker_ui import render_options_tracker
         render_options_tracker()
     except ImportError:
