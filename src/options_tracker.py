@@ -360,6 +360,12 @@ class OptionsTracker:
                             long_put_price = fallback_prices.get(f"PUT_{long_strike:g}", 1.0)
                     credit = short_put_price - long_put_price
                     max_loss = (short_strike - long_strike) - credit
+                    profit_target = credit * 0.5
+                    
+                    # Filter: Only include suggestions with profit target >= $1.00 per share ($100 per contract)
+                    if profit_target < 1.0:
+                        print(f"   ❌ Skipping Bull Put Spread for {ticker}: Profit target ${profit_target:.2f} < $1.00 minimum")
+                        continue
                     
                     # Create detailed reasoning
                     indicators = prediction.get('indicators', {})
@@ -400,7 +406,7 @@ class OptionsTracker:
                         'long_strike': long_strike,
                         'credit': credit,
                         'max_loss': max_loss,
-                        'profit_target': credit * 0.5,
+                        'profit_target': profit_target,
                         'expiration': expiration_date,
                         'confidence': min(90, 50 + bias_score * 100),
                         'reasoning': reasoning,
@@ -433,8 +439,14 @@ class OptionsTracker:
                                 long_call_price = fallback_prices.get(f"CALL_{long_strike:g}", 0.5)
                         credit = short_call_price - long_call_price
                         max_loss = (long_strike - short_strike) - credit
+                        profit_target = credit * 0.5
                         
-                        print(f"   💰 Credit: ${credit:.2f}, Max Loss: ${max_loss:.2f}")
+                        # Filter: Only include suggestions with profit target >= $1.00 per share ($100 per contract)
+                        if profit_target < 1.0:
+                            print(f"   ❌ Skipping Bear Call Spread for {ticker}: Profit target ${profit_target:.2f} < $1.00 minimum")
+                            continue
+                        
+                        print(f"   💰 Credit: ${credit:.2f}, Max Loss: ${max_loss:.2f}, Profit Target: ${profit_target:.2f}")
                         
                         # Create detailed reasoning
                         indicators = prediction.get('indicators', {})
@@ -476,7 +488,7 @@ class OptionsTracker:
                             'long_strike': long_strike,
                             'credit': credit,
                             'max_loss': max_loss,
-                            'profit_target': credit * 0.5,
+                            'profit_target': profit_target,
                             'expiration': expiration_date,
                             'confidence': min(90, 50 + abs(bias_score) * 100),
                             'reasoning': reasoning,
@@ -546,6 +558,12 @@ class OptionsTracker:
                     
                     credit = (put_short_price - put_long_price) + (call_short_price - call_long_price)
                     max_loss = max((put_short - put_long), (call_long - call_short)) - credit
+                    profit_target = credit * 0.5
+                    
+                    # Filter: Only include suggestions with profit target >= $1.00 per share ($100 per contract)
+                    if profit_target < 1.0:
+                        print(f"   ❌ Skipping Iron Condor for {ticker}: Profit target ${profit_target:.2f} < $1.00 minimum")
+                        continue
                     
                     # Create detailed reasoning
                     indicators = prediction.get('indicators', {})
@@ -623,6 +641,12 @@ class OptionsTracker:
                         
                         credit = (put_short_price - put_long_price) + (call_short_price - call_long_price)
                         max_loss = max((put_short - put_long), (call_long - call_short)) - credit
+                        fallback_profit_target = credit * 0.5
+                        
+                        # Filter: Only include suggestions with profit target >= $1.00 per share ($100 per contract)
+                        if fallback_profit_target < 1.0:
+                            print(f"   ❌ Skipping Fallback Iron Condor for {ticker}: Profit target ${fallback_profit_target:.2f} < $1.00 minimum")
+                            continue
                         
                         suggestions.append({
                             'ticker': ticker,
@@ -635,7 +659,7 @@ class OptionsTracker:
                             'call_long_strike': call_long,
                             'credit': credit,
                             'max_loss': max_loss,
-                            'profit_target': credit * 0.5,
+                            'profit_target': fallback_profit_target,
                             'expiration': expiration_date,
                             'confidence': 60,  # Medium confidence
                             'reasoning': f"📊 NEUTRAL STRATEGY for {ticker}\n\nMarket showing mixed signals, using Iron Condor to profit from range-bound movement.\n\nProfit if {ticker} stays between ${put_short:.2f} and ${call_short:.2f} at expiration.",
