@@ -77,6 +77,12 @@ def run_tactical_tracker():
     portfolio_size = st.sidebar.slider("Max Portfolio Size", 5, 15, 10)
     
     # Add defensive allocation toggle
+    # Additional settings
+    st.sidebar.markdown("### ⚙️ Advanced Settings")
+    
+    deterministic_mode = st.sidebar.checkbox("Deterministic Mode", False, 
+                                           help="Use consistent data snapshots for reproducible results (helpful for testing)")
+    
     defensive_mode = st.sidebar.checkbox("Enable Defensive Mode", help="Allocate 10-20% to defensive ETFs when market conditions deteriorate")
     
     # Discovery settings for auto mode
@@ -116,6 +122,9 @@ def run_tactical_tracker():
             # Ticker discovery and analysis
             if use_auto_discovery:
                 # Auto-discovery mode
+                if deterministic_mode:
+                    st.info("🔧 Deterministic mode enabled - using consistent data snapshots for reproducible results")
+                
                 results = run_screening(tracker, portfolio_size, min_rs_score, min_weekly_target, market_health)
             else:
                 # Manual ticker analysis (original logic)
@@ -688,9 +697,15 @@ class PortfolioTracker:
     def get_weekly_returns(self, ticker: str, weeks: int = 5) -> Optional[List[float]]:
         """Get weekly returns for a ticker using proper weekly grouping"""
         try:
-            end = datetime.today()
+            # Use consistent end date for deterministic results
+            end = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+            if end.weekday() >= 5:  # Weekend
+                # Go back to Friday
+                days_back = end.weekday() - 4
+                end = end - timedelta(days=days_back)
+            
             start = end - timedelta(days=weeks * 7 + 7)  # Add extra week for safety
-            df = yf.download(ticker, start=start, end=end, interval='1d', auto_adjust=True)
+            df = yf.download(ticker, start=start, end=end + timedelta(days=1), interval='1d', auto_adjust=True, progress=False)
             if df.empty or len(df) < 7:
                 return None
                 
@@ -730,9 +745,20 @@ class PortfolioTracker:
                 market_cap = 1e9  # Default to $1B
                 name = ticker
             
-            # Try to get price data
+            # Try to get price data with consistent end date for deterministic results
             try:
-                hist = stock.history(period="1mo")  # 1 month of data
+                # Use a fixed end date for more consistent results during market hours
+                end_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                if end_date.weekday() >= 5:  # Weekend
+                    # Go back to Friday
+                    days_back = end_date.weekday() - 4
+                    end_date = end_date - timedelta(days=days_back)
+                
+                hist = stock.history(period="1mo", end=end_date + timedelta(days=1))
+                if hist.empty:
+                    # Fallback to regular period-based fetch
+                    hist = stock.history(period="1mo")
+                
                 if hist.empty:
                     return None
                 
