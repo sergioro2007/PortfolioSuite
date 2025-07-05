@@ -133,6 +133,9 @@ def run_tactical_tracker():
                     results, portfolio_size, min_rs_score, min_weekly_target, market_health
                 )
                 
+                # Save results for historical comparison
+                tracker.save_results(results)
+                
                 # Display results
                 display_recommendations(recommendations, strong_buy_weight, moderate_buy_weight, 
                                       market_health, allow_defensive_cash, tracker)
@@ -194,6 +197,94 @@ class PortfolioTracker:
         self.portfolio = {}
         self.market_data = {}
         self.results_file = "portfolio_results.pkl"
+    
+    def save_results(self, results: List[Dict], timestamp: datetime = None):
+        """Save analysis results with timestamp for historical comparison"""
+        if timestamp is None:
+            timestamp = datetime.now()
+            
+        # Load existing results
+        historical_results = self.load_historical_results()
+        
+        # Add new results
+        historical_results.append({
+            'timestamp': timestamp,
+            'results': results,
+            'market_conditions': self.get_market_health()
+        })
+        
+        # Keep only last 10 analyses
+        historical_results = historical_results[-10:]
+        
+        # Save to file
+        try:
+            with open(self.results_file, 'wb') as f:
+                pickle.dump(historical_results, f)
+        except Exception:
+            pass  # Fail silently if can't save
+    
+    def load_historical_results(self) -> List[Dict]:
+        """Load historical analysis results"""
+        try:
+            if os.path.exists(self.results_file):
+                with open(self.results_file, 'rb') as f:
+                    return pickle.load(f)
+        except Exception:
+            pass
+        return []
+    
+    def compare_with_previous(self, current_results: List[Dict], min_rs_score: float = 30, min_weekly_target: float = 1.5) -> Dict:
+        """Compare current results with previous analysis"""
+        historical = self.load_historical_results()
+        
+        if len(historical) < 2:
+            return {'has_previous': False}
+        
+        previous = historical[-2]['results']  # Second to last
+        current_top = self.get_top_picks(current_results, 10, min_rs_score, min_weekly_target)
+        previous_top = self.get_top_picks(previous, 10, min_rs_score, min_weekly_target)
+        
+        # Create comparison
+        current_tickers = {r['ticker']: r for r in current_top}
+        previous_tickers = {r['ticker']: r for r in previous_top}
+        
+        # Find changes
+        new_entrants = []
+        dropped_out = []
+        improved = []
+        declined = []
+        
+        for ticker in current_tickers:
+            if ticker not in previous_tickers:
+                new_entrants.append(current_tickers[ticker])
+            else:
+                current_score = current_tickers[ticker]['momentum_score']
+                previous_score = previous_tickers[ticker]['momentum_score']
+                if current_score > previous_score:
+                    improved.append({
+                        'ticker': ticker,
+                        'current': current_tickers[ticker],
+                        'improvement': current_score - previous_score
+                    })
+                elif current_score < previous_score:
+                    declined.append({
+                        'ticker': ticker,
+                        'current': current_tickers[ticker],
+                        'decline': previous_score - current_score
+                    })
+        
+        for ticker in previous_tickers:
+            if ticker not in current_tickers:
+                dropped_out.append(previous_tickers[ticker])
+        
+        return {
+            'has_previous': True,
+            'previous_date': historical[-2]['timestamp'],
+            'new_entrants': new_entrants,
+            'dropped_out': dropped_out,
+            'improved': improved,
+            'declined': declined
+        }
     
     def get_market_health(self) -> Dict:
         """Calculate comprehensive market health indicators for automatic defensive mode"""
@@ -435,6 +526,9 @@ class PortfolioTracker:
         moderate_buys = [r for r in top_picks if r['momentum_score'] > 10 and r not in strong_buys]
         watch_list = [r for r in top_picks if r not in strong_buys and r not in moderate_buys]
 
+        # Add historical comparison
+        comparison = self.compare_with_previous(results, min_rs_score, min_weekly_target)
+
         return {
             'top_picks': top_picks,  # This is the key - return the ranked top picks
             'strong_buys': strong_buys,
@@ -442,7 +536,8 @@ class PortfolioTracker:
             'watch_list': watch_list,
             'all_qualified': top_picks,
             'total_screened': len(results),
-            'total_qualified': len(top_picks)
+            'total_qualified': len(top_picks),
+            'comparison': comparison  # Add comparison data
         }
     
     def passes_filters(self, result: Dict, min_rs_score: float = 30, min_weekly_target: float = 1.5) -> bool:
@@ -1057,3 +1152,67 @@ def display_recommendations(recommendations: Dict, strong_buy_weight: float, mod
     with col4:
         regime = allocation_data.get('market_regime', 'UNKNOWN')
         st.metric("Market Regime", regime)
+
+    # HISTORICAL COMPARISON SECTION
+    comparison = recommendations.get('comparison', {})
+    if comparison.get('has_previous', False):
+        st.header("📊 Changes Since Last Analysis")
+        st.caption(f"Compared to analysis from {comparison['previous_date'].strftime('%Y-%m-%d %H:%M')}")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # New entrants
+            if comparison['new_entrants']:
+                st.subheader("🆕 NEW ENTRIES")
+                for ticker_data in comparison['new_entrants'][:5]:
+                    st.success(f"**{ticker_data['ticker']}** - New to top 10 (Score: {ticker_data['momentum_score']:.1f})")
+            
+            # Improved tickers
+            if comparison['improved']:
+                st.subheader("📈 IMPROVED")
+                for improvement in comparison['improved'][:3]:
+                    st.info(f"**{improvement['ticker']}** - Score improved by {improvement['improvement']:.1f}")
+        
+        with col2:
+            # Dropped out
+            if comparison['dropped_out']:
+                st.subheader("📉 DROPPED OUT")
+                for ticker_data in comparison['dropped_out'][:5]:
+                    st.error(f"**{ticker_data['ticker']}** - No longer in top 10")
+            
+            # Declined tickers
+            if comparison['declined']:
+                st.subheader("⚠️ DECLINED")
+                for decline in comparison['declined'][:3]:
+                    st.warning(f"**{decline['ticker']}** - Score declined by {decline['decline']:.1f}")
+
+        # ACTIONABLE RECOMMENDATIONS
+        st.header("💡 SUGGESTED PORTFOLIO ACTIONS")
+        
+        actions = []
+        
+        # Suggest buying new strong performers
+        if comparison['new_entrants']:
+            strong_new = [t for t in comparison['new_entrants'] if t['momentum_score'] > 15]
+            if strong_new:
+                for ticker_data in strong_new[:2]:
+                    actions.append(f"🔥 **BUY {ticker_data['ticker']}** - New strong momentum entry (Score: {ticker_data['momentum_score']:.1f})")
+        
+        # Suggest selling declined performers
+        if comparison['dropped_out']:
+            for ticker_data in comparison['dropped_out'][:2]:
+                actions.append(f"🚨 **CONSIDER SELLING {ticker_data['ticker']}** - Dropped from top 10, momentum weakening")
+        
+        # Suggest watching improved performers
+        if comparison['improved']:
+            strong_improved = [t for t in comparison['improved'] if t['improvement'] > 5]
+            if strong_improved:
+                for improvement in strong_improved[:2]:
+                    actions.append(f"👀 **WATCH {improvement['ticker']}** - Strong momentum improvement (+{improvement['improvement']:.1f})")
+        
+        if actions:
+            for action in actions:
+                st.markdown(action)
+        else:
+            st.info("No major portfolio changes recommended at this time.")

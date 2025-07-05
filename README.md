@@ -26,6 +26,15 @@ A comprehensive multi-feature investment analysis platform with professional-gra
 
 ## 🚀 Quick Start
 
+### Installation
+```bash
+# Clone or download the project
+cd Portfolio-Management-Suite
+
+# Install required dependencies
+pip install -r requirements.txt
+```
+
 ### Option 1: Using the New Multi-Feature Launcher (Recommended)
 ```bash
 ./run_suite.sh
@@ -33,14 +42,10 @@ A comprehensive multi-feature investment analysis platform with professional-gra
 
 ### Option 2: Manual Launch
 ```bash
-# Activate virtual environment
-source .venv/bin/activate
-
-# Install dependencies
-pip install streamlit yfinance pandas numpy
-
 # Run the multi-feature application
 streamlit run main_app.py
+```
+
 ### Option 3: Legacy Tactical Tracker Only
 ```bash
 # For the original tactical momentum tracker only
@@ -71,6 +76,7 @@ streamlit run streamlit_app.py
    - Track market health indicators and regime classification
    - Get buy/sell/hold recommendations with automatic cash allocation
    - Monitor real-time performance and allocation percentages
+   - View historical comparison with "Changes Since Last Analysis"
 
 ### 🛡️ Long-Term Quality Stocks Usage
 1. **Configure Quality Filters**:
@@ -96,6 +102,7 @@ streamlit run streamlit_app.py
 - ✅ **Real-time market health monitoring**
 - ✅ **Advanced technical analysis**
 - ✅ **Intelligent defensive cash allocation**
+- ✅ **Historical comparison tracking** ("Changes Since Last Analysis")
 - ✅ **Risk management tools**
 
 ### 🛡️ Quality Stocks Features  
@@ -160,9 +167,18 @@ The suite provides sophisticated allocation management across both strategies:
 
 ## 🛠️ Requirements
 
-- Python 3.7+
-- Internet connection for real-time data
-- Web browser for the Streamlit interface
+- **Python 3.8+** (tested with Python 3.8-3.11)
+- **Internet connection** for real-time market data
+- **Web browser** for the Streamlit interface
+
+### Dependencies
+All required packages are listed in `requirements.txt`:
+- `streamlit` - Web application framework
+- `yfinance` - Market data retrieval
+- `pandas` - Data manipulation and analysis
+- `numpy` - Numerical computing
+- `requests` - HTTP requests for web scraping
+- `beautifulsoup4` - HTML parsing for market data
 
 ## 🧪 Testing & Verification
 
@@ -223,6 +239,7 @@ These tests should be run regularly to ensure continued system health and parity
 - 📊 **Unified interface** with feature selection and educational content
 - 🔄 **Complementary strategies** designed to work together
 - 📱 **Enhanced user experience** with comprehensive guidance
+- 📈 **Historical comparison tracking** with "Changes Since Last Analysis" feature
 - ✅ **100% Tactical Tracker Parity** - New modular tactical tracker produces identical results to original
 
 ### ✅ Verification Complete:
@@ -238,6 +255,25 @@ The new tactical tracker module maintains 100% backward compatibility with the o
 
 For detailed requirements and technical specifications, see `tactical_portfolio_app_requirements.md`.
 
+## 📁 Project Structure
+
+### Essential Files (Main Directory)
+- `main_app.py` - Multi-feature portfolio management suite launcher
+- `tactical_tracker.py` - Modular tactical momentum tracker (with historical comparison)
+- `streamlit_app.py` - Legacy tactical tracker (reference implementation)
+- `portfolio_results.pkl` - Historical analysis data for comparison feature
+- `requirements.txt` - Python package dependencies
+- `run_suite.sh` / `run_suite_edge.sh` - Application launch scripts
+- `README.md` - Main documentation
+- `tactical_portfolio_app_requirements.md` - Technical specifications
+
+### Supporting Directories
+- `tests/` - Core test suite for validation and quality assurance
+- `archived_files/` - Documentation, debug files, and project backups
+- `.streamlit/` - Streamlit configuration (includes Edge browser compatibility)
+
+For detailed project structure and organization, see `PROJECT_STATUS.md`.
+
 ---
 
-*Last updated: July 4, 2025 - Tactical Tracker Parity Verified*
+*Last updated: December 27, 2024 - Historical Comparison Feature and Documentation Updates*

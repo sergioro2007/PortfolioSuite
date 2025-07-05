@@ -171,16 +171,24 @@ Each day, check:
 - **Sector rotation insights** using ETF performance analysis
 - **Volatility regime detection** with automatic defensive triggers
 - **Economic indicator integration** (VIX, breadth, momentum)
-- **Historical comparison** with previous portfolio analyses
+- **Historical comparison tracking** with "Changes Since Last Analysis"
 
 #### 5. Production-Ready Interface
 - **Streamlit web application** with professional styling
 - **Interactive parameter controls** with real-time validation
 - **Comprehensive data tables** with proper percentage formatting
+- **Historical comparison dashboard** showing analysis trends and changes
 - **Export capabilities** for portfolio results and analysis
 - **Mobile-responsive design** for multi-device access
 
 ### Recent Major Updates ✅ COMPLETED
+
+#### V2.1 - Historical Comparison Feature (2024-12-27)
+- **📈 "Changes Since Last Analysis"** - Track portfolio evolution over time
+- **🔄 Automatic result persistence** with `portfolio_results.pkl` storage
+- **📊 Comprehensive comparison metrics** - new entries, dropped out, improved, declined
+- **🎯 Actionable recommendations** based on historical performance patterns
+- **📱 Integrated UI display** showing comparison alongside current analysis
 
 #### V2.0 - Defensive Cash Allocation (2025-07-03)
 - **🛡️ Intelligent defensive cash allocation** (0-30% based on market regime)
@@ -240,7 +248,7 @@ Each day, check:
 - **Interactive allocation controls** with immediate feedback
 - **Comprehensive portfolio tables** with proper percentage formatting
 - **Educational explanations** for defensive positioning decisions
-- **Historical comparison** with previous analysis results
+- **Historical comparison tracking** with "Changes Since Last Analysis"
 
 ### 🎯 Key Workflow Benefits
 
@@ -341,12 +349,13 @@ User Interface & Educational Content
 
 The Portfolio Management Suite v2.0 is a **fully functional, institutional-quality multi-feature platform** with both tactical and quality investment approaches:
 
-### 🎯 Core Achievements - V2.0
+### 🎯 Core Achievements - V2.1
 - ✅ **Multi-feature architecture** with tactical momentum and quality stock analysis
 - ✅ **100% Tactical Tracker Parity** - New modular component produces identical results to original
 - ✅ **Advanced momentum screening** with strict tactical rules enforcement
 - ✅ **Intelligent defensive cash allocation** (0-30% based on market regime)
 - ✅ **Professional portfolio management** with two-tier position sizing
+- ✅ **Historical comparison tracking** with "Changes Since Last Analysis" feature
 - ✅ **Long-term quality stock analysis** with fundamental screening
 - ✅ **Real-time market health monitoring** with 6-signal detection system
 - ✅ **Production-ready Streamlit interface** with feature selection and educational UI
@@ -362,6 +371,13 @@ The Portfolio Management Suite v2.0 is a **fully functional, institutional-quali
 - **Momentum Scoring**: Exact algorithm replication with identical momentum scores
 - **Portfolio Allocation**: Same two-tier sizing and defensive cash allocation
 - **Edge Cases**: All filtering logic and screening scenarios verified identical
+
+### 🆕 V2.1 Historical Comparison Enhancements
+- **📈 "Changes Since Last Analysis"** - Comprehensive tracking of portfolio evolution
+- **🔄 Automatic Data Persistence** - Results saved in `portfolio_results.pkl` after each analysis
+- **📊 Detailed Comparison Metrics** - New entries, dropped tickers, performance improvements/declines
+- **🎯 Actionable Insights** - Clear recommendations based on historical patterns
+- **📱 Integrated UI Display** - Seamless integration with existing tactical tracker interface
 
 ### 🆕 V2.0 Multi-Feature Enhancements
 - **🎯 Feature Selection Interface** - Choose between tactical momentum and quality stock analysis
@@ -399,18 +415,19 @@ The Portfolio Management Suite v2.0 is a **fully functional, institutional-quali
 
 ---
 
-## 🎉 Ready for Production Use - V2.0 Multi-Feature Suite
+## 🎉 Ready for Production Use - V2.1 Multi-Feature Suite
 
-The Portfolio Management Suite v2.0 successfully delivers:
+The Portfolio Management Suite v2.1 successfully delivers:
 
 1. **🎯 Dual Investment Approaches** - Tactical momentum and long-term quality analysis
 2. **✅ 100% Tactical Tracker Parity** - Verified identical results to original application
-3. **🛡️ Intelligent risk management** through dynamic cash allocation and defensive positioning
-4. **📊 Professional portfolio construction** across multiple investment styles
-5. **📱 Production-ready multi-feature interface** with comprehensive user guidance
-6. **🧪 Extensively tested codebase** with parity verification and quality assurance
+3. **📈 Historical Comparison Tracking** - "Changes Since Last Analysis" with actionable insights
+4. **🛡️ Intelligent risk management** through dynamic cash allocation and defensive positioning
+5. **📊 Professional portfolio construction** across multiple investment styles
+6. **📱 Production-ready multi-feature interface** with comprehensive user guidance
+7. **🧪 Extensively tested codebase** with parity verification and quality assurance
 
-**Perfect for**: Investment professionals, sophisticated individual investors, portfolio managers, financial advisors, and institutions seeking a comprehensive platform that combines aggressive momentum strategies with conservative quality analysis - all with the assurance that the tactical component maintains 100% compatibility with proven methodologies.
+**Perfect for**: Investment professionals, sophisticated individual investors, portfolio managers, financial advisors, and institutions seeking a comprehensive platform that combines aggressive momentum strategies with conservative quality analysis - all with historical tracking capabilities and the assurance that the tactical component maintains 100% compatibility with proven methodologies.
 
 ### 🔄 Migration Path
 - **Current Users**: Existing tactical tracker users can seamlessly transition to the new suite while maintaining exact functionality
@@ -419,4 +436,58 @@ The Portfolio Management Suite v2.0 successfully delivers:
 
 ---
 
-_Last updated: 2025-07-04 - V2.0 Multi-Feature Suite with 100% Tactical Tracker Parity Verified_
+## 📈 Historical Comparison Feature
+
+The tactical tracker now includes comprehensive historical comparison functionality that tracks portfolio evolution over time.
+
+### 🔄 Automatic Data Persistence
+- **Results Storage**: Each analysis is automatically saved to `portfolio_results.pkl`
+- **Historical Tracking**: Maintains complete record of all previous screening results
+- **Timestamp Management**: Tracks analysis dates for temporal comparison
+- **Parameter Tracking**: Preserves screening parameters used for each analysis
+
+### 📊 "Changes Since Last Analysis" Dashboard
+The historical comparison feature provides detailed insights into portfolio evolution:
+
+#### 📈 New Entries
+- **Fresh Opportunities**: Tickers that newly qualify for the portfolio
+- **Qualification Details**: Shows why each new ticker now meets criteria
+- **Performance Metrics**: Current momentum scores and weekly returns
+
+#### 📉 Dropped Out
+- **Removed Positions**: Tickers that no longer meet screening criteria
+- **Reason Analysis**: Explains why each ticker was dropped
+- **Risk Management**: Identifies potential exit signals
+
+#### 🚀 Improved Performance
+- **Momentum Gainers**: Tickers showing enhanced performance since last analysis
+- **Score Improvements**: Quantified increases in momentum scores
+- **Acceleration Patterns**: Identifies strengthening opportunities
+
+#### 📊 Declined Performance
+- **Momentum Weakness**: Tickers showing reduced performance
+- **Score Deterioration**: Quantified decreases in momentum scores
+- **Warning Signals**: Early indicators of potential exits
+
+#### 🎯 Actionable Recommendations
+- **Position Adjustments**: Specific buy/sell/hold recommendations
+- **Risk Management**: Defensive positioning suggestions
+- **Market Timing**: Insights based on historical patterns
+
+### 🔧 Technical Implementation
+- **Data Structure**: Comprehensive storage of ticker data, scores, and metadata
+- **Comparison Algorithm**: Sophisticated matching and change detection
+- **UI Integration**: Seamless display within existing tactical tracker interface
+- **Performance Optimization**: Efficient data handling for large historical datasets
+
+### 📱 User Experience
+- **Automatic Operation**: No user intervention required - runs with each analysis
+- **Clear Visualization**: Color-coded sections for easy interpretation
+- **Educational Content**: Explanations of what each comparison metric means
+- **Actionable Insights**: Clear guidance on how to use historical information
+
+This feature transforms the tactical tracker from a point-in-time analysis tool into a comprehensive portfolio evolution tracker, providing crucial insights for professional portfolio management.
+
+---
+
+_Last updated: 2024-12-27 - V2.1 Multi-Feature Suite with Historical Comparison Feature Added_

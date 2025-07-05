@@ -39,4 +39,4 @@ echo "Press Ctrl+C to stop the application"
 echo ""
 
 # Run the main application
-streamlit run main_app.py --server.headless false --server.port 8501
+streamlit run main_app.py --server.headless false --server.port 8502

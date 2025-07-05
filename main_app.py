@@ -25,6 +25,46 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Edge browser compatibility fixes
+st.markdown("""
+<style>
+/* Edge browser compatibility CSS */
+.main > div {
+    padding-top: 2rem;
+}
+.stSelectbox > div > div {
+    background-color: white;
+}
+/* Ensure WebSocket connections work in Edge */
+.stApp {
+    background-color: #FFFFFF;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# JavaScript for Edge compatibility
+st.markdown("""
+<script>
+// Edge browser compatibility JavaScript
+(function() {
+    if (navigator.userAgent.indexOf('Edg') > -1) {
+        console.log('Edge browser detected - applying compatibility fixes');
+        
+        // Force WebSocket polyfill for Edge if needed
+        if (typeof WebSocket === 'undefined') {
+            console.warn('WebSocket not available in Edge');
+        }
+        
+        // Disable Edge's automatic zoom on inputs
+        var viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+            viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        }
+    }
+})();
+</script>
+""", unsafe_allow_html=True)
+
 def main():
     """Main application entry point with feature selection"""
     

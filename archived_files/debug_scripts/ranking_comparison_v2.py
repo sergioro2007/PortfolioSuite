@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""
+Ranking Comparison: Analyze differences in top 10 rankings between apps using proper methods
+"""
+
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+
+from streamlit_app import PortfolioTracker as OriginalTracker
+from tactical_tracker import PortfolioTracker as NewTracker
+
+def compare_rankings():
+    """Compare the top 10 rankings between both trackers"""
+    print("🔍 RANKING COMPARISON ANALYSIS")
+    print("=" * 60)
+    
+    # Initialize both trackers
+    original = OriginalTracker()
+    new = NewTracker()
+    
+    # Test parameters
+    min_rs_score = 30
+    min_weekly_target = 1.5
+    
+    # Default ticker list (same as both apps use)
+    default_tickers = ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "TSLA", "SPY", "QQQ", "IWM"]
+    
+    print(f"📋 Analyzing tickers: {default_tickers}")
+    print(f"🎯 Parameters: RS Score >= {min_rs_score}, Weekly Target >= {min_weekly_target}")
+    print()
+    
+    # Get results from both trackers
+    print("1️⃣ Getting results from ORIGINAL tracker...")
+    original_results = []
+    for ticker in default_tickers:
+        try:
+            result = original.analyze_ticker_momentum(ticker, min_rs_score, min_weekly_target)
+            if result:
+                original_results.append(result)
+        except Exception as e:
+            print(f"   ❌ Error processing {ticker} in original: {e}")
+    
+    print("2️⃣ Getting results from NEW tracker...")
+    new_results = []
+    for ticker in default_tickers:
+        try:
+            result = new.analyze_ticker_momentum(ticker, min_rs_score, min_weekly_target)
+            if result:
+                new_results.append(result)
+        except Exception as e:
+            print(f"   ❌ Error processing {ticker} in new: {e}")
+    
+    # Sort by momentum score (descending)
+    original_sorted = sorted(original_results, key=lambda x: x.get('momentum_score', 0), reverse=True)
+    new_sorted = sorted(new_results, key=lambda x: x.get('momentum_score', 0), reverse=True)
+    
+    print("\n3️⃣ RANKING COMPARISON")
+    print("-" * 60)
+    
+    # Show top 10 from each
+    print("🥇 ORIGINAL TRACKER - Top 10:")
+    for i, result in enumerate(original_sorted[:10], 1):
+        ticker = result.get('ticker', 'N/A')
+        score = result.get('momentum_score', 0)
+        weekly = result.get('weekly_return', 0)
+        rs = result.get('rs_score', 0)
+        print(f"   {i:2d}. {ticker:5s} - Score: {score:6.2f} | Weekly: {weekly:6.2f}% | RS: {rs:6.2f}")
+    
+    print("\n🥈 NEW TRACKER - Top 10:")
+    for i, result in enumerate(new_sorted[:10], 1):
+        ticker = result.get('ticker', 'N/A')
+        score = result.get('momentum_score', 0)
+        weekly = result.get('weekly_return', 0)
+        rs = result.get('rs_score', 0)
+        print(f"   {i:2d}. {ticker:5s} - Score: {score:6.2f} | Weekly: {weekly:6.2f}% | RS: {rs:6.2f}")
+    
+    # Check for differences
+    print("\n4️⃣ RANKING DIFFERENCES ANALYSIS")
+    print("-" * 60)
+    
+    # Create ranking dictionaries
+    original_ranks = {result.get('ticker'): i+1 for i, result in enumerate(original_sorted)}
+    new_ranks = {result.get('ticker'): i+1 for i, result in enumerate(new_sorted)}
+    
+    # Find common tickers
+    common_tickers = set(original_ranks.keys()) & set(new_ranks.keys())
+    
+    if not common_tickers:
+        print("❌ NO COMMON TICKERS FOUND!")
+        print(f"Original tickers: {list(original_ranks.keys())}")
+        print(f"New tickers: {list(new_ranks.keys())}")
+        return
+    
+    print(f"📊 Found {len(common_tickers)} common tickers: {sorted(common_tickers)}")
+    
+    differences_found = False
+    for ticker in sorted(common_tickers):
+        orig_rank = original_ranks[ticker]
+        new_rank = new_ranks[ticker]
+        
+        if orig_rank != new_rank:
+            differences_found = True
+            print(f"📊 {ticker}: Original #{orig_rank} vs New #{new_rank} (diff: {new_rank - orig_rank:+d})")
+    
+    if not differences_found:
+        print("✅ All rankings are IDENTICAL!")
+    else:
+        print("\n5️⃣ DETAILED SCORE COMPARISON")
+        print("-" * 60)
+        
+        # Compare scores for different rankings
+        for ticker in sorted(common_tickers):
+            orig_rank = original_ranks[ticker]
+            new_rank = new_ranks[ticker]
+            
+            if orig_rank != new_rank:
+                # Find the actual scores
+                orig_score = next((r.get('momentum_score', 0) for r in original_results if r.get('ticker') == ticker), 0)
+                new_score = next((r.get('momentum_score', 0) for r in new_results if r.get('ticker') == ticker), 0)
+                
+                print(f"🔍 {ticker}:")
+                print(f"   Original: Rank #{orig_rank}, Score: {orig_score:.6f}")
+                print(f"   New:      Rank #{new_rank}, Score: {new_score:.6f}")
+                print(f"   Score diff: {new_score - orig_score:+.6f}")
+                print()
+
+if __name__ == "__main__":
+    compare_rankings()
