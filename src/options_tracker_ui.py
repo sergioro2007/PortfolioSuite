@@ -269,8 +269,8 @@ def render_dashboard(tracker: OptionsTracker):
                 'Strategy': trade['strategy'],
                 'Entry Date': trade['entry_date'],
                 'Expiration': trade['expiration'],
-                'Credit': f"${credit_per_contract:.0f}",
-                'Max Loss': f"${max_loss_per_contract:.0f}",
+                'Credit': f"${credit_per_contract:.0f} (${trade.get('credit', 0):.2f})",
+                'Max Loss': f"${max_loss_per_contract:.0f} (${trade.get('max_loss', 0):.2f})",
                 'Recommendation': evaluation['recommendation'],
                 'Reason': evaluation['reason']
             })
@@ -365,9 +365,22 @@ def render_new_trades(tracker: OptionsTracker):
                     max_loss_per_contract = suggestion['max_loss'] * 100
                     profit_target_per_contract = suggestion['profit_target'] * 100
                     
-                    st.metric("Credit", f"${credit_per_contract:.0f}")
-                    st.metric("Max Loss", f"${max_loss_per_contract:.0f}")
-                    st.metric("Profit Target", f"${profit_target_per_contract:.0f}")
+                    # Display both spread price and contract value
+                    st.metric(
+                        "Credit", 
+                        f"${credit_per_contract:.0f}",
+                        delta=f"${suggestion['credit']:.2f}/share"
+                    )
+                    st.metric(
+                        "Max Loss", 
+                        f"${max_loss_per_contract:.0f}",
+                        delta=f"${suggestion['max_loss']:.2f}/share"
+                    )
+                    st.metric(
+                        "Profit Target", 
+                        f"${profit_target_per_contract:.0f}",
+                        delta=f"${suggestion['profit_target']:.2f}/share"
+                    )
                 
                 # OptionStrat link - Generate correct URL for the suggested trade
                 optionstrat_url = generate_optionstrat_url(suggestion)
@@ -536,8 +549,8 @@ def render_trade_management(tracker: OptionsTracker):
             st.write(f"**Strategy:** {trade['strategy']}")
             st.write(f"**Entry Date:** {trade['entry_date']}")
             st.write(f"**Expiration:** {trade['expiration']}")
-            st.write(f"**Credit:** ${credit_per_contract:.0f}")
-            st.write(f"**Max Loss:** ${max_loss_per_contract:.0f}")
+            st.write(f"**Credit:** ${credit_per_contract:.0f} (${trade.get('credit', 0):.2f}/share)")
+            st.write(f"**Max Loss:** ${max_loss_per_contract:.0f} (${trade.get('max_loss', 0):.2f}/share)")
         
         with col2:
             # Days to expiration
@@ -615,9 +628,9 @@ def render_trade_history(tracker: OptionsTracker):
             'Strategy': trade['strategy'],
             'Entry Date': trade['entry_date'],
             'Exit Date': trade.get('exit_date', ''),
-            'Credit': f"${credit_per_contract:.0f}",
-            'Exit Price': f"${exit_price_per_contract:.0f}",
-            'P&L': f"${pnl_per_contract:.0f}",
+            'Credit': f"${credit_per_contract:.0f} (${trade.get('credit', 0):.2f})",
+            'Exit Price': f"${exit_price_per_contract:.0f} (${trade.get('exit_price', 0):.2f})",
+            'P&L': f"${pnl_per_contract:.0f} (${trade.get('pnl', 0):.2f})",
             'Exit Reason': trade.get('exit_reason', '')
         })
     
