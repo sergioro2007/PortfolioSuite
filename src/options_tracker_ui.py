@@ -16,6 +16,53 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from options_tracker import OptionsTracker
 
+def generate_descriptive_title(suggestion: dict) -> str:
+    """Generate a descriptive title for a trade suggestion"""
+    ticker = suggestion['ticker']
+    strategy = suggestion['strategy']
+    expiration = suggestion.get('expiration', '2025-08-01')
+    
+    # Format expiration date to be more readable (e.g., "Aug 1st")
+    try:
+        exp_date = datetime.strptime(expiration, '%Y-%m-%d')
+        month_name = exp_date.strftime('%b')
+        day = exp_date.day
+        day_suffix = 'st' if day == 1 or day == 21 or day == 31 else 'nd' if day == 2 or day == 22 else 'rd' if day == 3 or day == 23 else 'th'
+        formatted_date = f"{month_name} {day}{day_suffix}"
+    except:
+        formatted_date = expiration
+    
+    # Build strike information based on strategy
+    if strategy == 'Bull Put Spread':
+        short_strike = suggestion.get('short_strike', 0)
+        long_strike = suggestion.get('long_strike', 0)
+        strikes_info = f"{long_strike:.0f}/{short_strike:.0f}"
+    elif strategy == 'Bear Call Spread':
+        short_strike = suggestion.get('short_strike', 0)
+        long_strike = suggestion.get('long_strike', 0)
+        strikes_info = f"{short_strike:.0f}/{long_strike:.0f}"
+    elif strategy == 'Iron Condor':
+        put_short = suggestion.get('put_short_strike', 0)
+        put_long = suggestion.get('put_long_strike', 0)
+        call_short = suggestion.get('call_short_strike', 0)
+        call_long = suggestion.get('call_long_strike', 0)
+        strikes_info = f"{put_long:.0f}/{put_short:.0f}/{call_short:.0f}/{call_long:.0f}"
+    else:
+        # Fallback for other strategies
+        strikes_info = ""
+        if 'short_strike' in suggestion:
+            strikes_info = f"{suggestion['short_strike']:.0f}"
+            if 'long_strike' in suggestion:
+                strikes_info += f"/{suggestion['long_strike']:.0f}"
+    
+    # Construct the descriptive title
+    if strikes_info:
+        title = f"{ticker} {formatted_date} {strikes_info} {strategy}"
+    else:
+        title = f"{ticker} {formatted_date} {strategy}"
+    
+    return title
+
 def generate_optionstrat_url(suggestion: dict) -> str:
     """Generate the correct OptionStrat URL for a trade suggestion"""
     ticker = suggestion['ticker']
@@ -257,7 +304,9 @@ def render_new_trades(tracker: OptionsTracker):
         
         if suggestions:
             for i, suggestion in enumerate(suggestions):
-                st.subheader(f"💼 Suggestion #{i+1}: {suggestion['ticker']}")
+                # Generate descriptive title using the helper function
+                descriptive_title = generate_descriptive_title(suggestion)
+                st.subheader(f"💼 Suggestion #{i+1}: {descriptive_title}")
                 
                 col1, col2 = st.columns([2, 1])
                 
