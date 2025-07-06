@@ -171,18 +171,96 @@ class OptionsTracker:
             st.error(f"Error calculating indicators for {ticker}: {e}")
             return {}
     
+    def _get_implied_volatility(self, ticker, current_price=None):
+        """Helper method to get implied volatility from options data"""
+        try:
+            import yfinance as yf
+            import numpy as np
+            
+            stock = yf.Ticker(ticker)
+            
+            # Get current price if not provided
+            if current_price is None:
+                try:
+                    info = stock.info
+                    current_price = info.get('regularMarketPrice', info.get('previousClose', 100))
+                except Exception:
+                    # Fall back to historical data
+                    hist = stock.history(period="1d")
+                    if not hist.empty:
+                        current_price = hist['Close'].iloc[-1]
+                    else:
+                        current_price = 100
+            
+            # Try to get options chain
+            if hasattr(stock, 'options') and stock.options:
+                # Get nearest expiration
+                nearest_exp = stock.options[0]
+                options = stock.option_chain(nearest_exp)
+                
+                # Find ATM options (within 5% of current price)
+                atm_calls = options.calls[
+                    (options.calls['strike'] >= current_price * 0.95) & 
+                    (options.calls['strike'] <= current_price * 1.05)
+                ]
+                atm_puts = options.puts[
+                    (options.puts['strike'] >= current_price * 0.95) & 
+                    (options.puts['strike'] <= current_price * 1.05)
+                ]
+                
+                # Extract implied volatilities
+                ivs = []
+                
+                # From calls
+                if 'impliedVolatility' in atm_calls.columns and not atm_calls.empty:
+                    call_ivs = atm_calls['impliedVolatility'].dropna().tolist()
+                    ivs.extend(call_ivs)
+                
+                # From puts
+                if 'impliedVolatility' in atm_puts.columns and not atm_puts.empty:
+                    put_ivs = atm_puts['impliedVolatility'].dropna().tolist()
+                    ivs.extend(put_ivs)
+                
+                # If we have IV values, use their average
+                if ivs:
+                    annual_iv = float(sum(ivs) / len(ivs))
+                    weekly_vol = annual_iv / np.sqrt(52)  # Convert to weekly
+                    
+                    return {
+                        'valid': True,
+                        'annual_iv': annual_iv,
+                        'weekly_vol': weekly_vol
+                    }
+            
+            # If we get here, return invalid result
+            return {'valid': False}
+            
+        except Exception as e:
+            print(f"  ⚠️ IV calculation error for {ticker}: {e}")
+            return {'valid': False}
+            
     def predict_price_range(self, ticker: str) -> Dict:
-        """Predict 1-week price range using technical indicators"""
+        """Predict 1-week price range using technical indicators and implied volatility"""
         try:
             indicators = self.get_technical_indicators(ticker)
             if not indicators:
                 return {}
             
             current_price = indicators['current_price']
-            volatility = indicators['volatility']
+            historical_vol = indicators['volatility']
             
-            # Weekly volatility estimate
-            weekly_vol = volatility / np.sqrt(52)
+            # Step 1: Try to get implied volatility data from options
+            iv_data = self._get_implied_volatility(ticker, current_price)
+            
+            # Use IV if available, otherwise fall back to historical volatility
+            if iv_data and iv_data.get('valid', False):
+                weekly_vol = iv_data['weekly_vol']
+                # Print debug info about IV source
+                print(f"  📈 Using implied volatility for {ticker}: {iv_data['annual_iv']:.1%} annual, {weekly_vol:.1%} weekly")
+            else:
+                # Fall back to historical volatility
+                weekly_vol = historical_vol / np.sqrt(52)
+                print(f"  📊 Using historical volatility for {ticker}: {historical_vol:.1%} annual, {weekly_vol:.1%} weekly")
             
             # Base prediction range (1 standard deviation)
             base_range = current_price * weekly_vol
@@ -214,12 +292,18 @@ class OptionsTracker:
             elif momentum < -2:
                 bias_score -= 0.1
             
-            # Calculate predicted range
+            # Calculate predicted range - use implied volatility for the range width
             lower_bound = current_price - base_range
             upper_bound = current_price + base_range
             
-            # Bias-adjusted target
+            # HYBRID MODEL: Bias-adjusted range center
             bias_adjustment = current_price * bias_score * 0.01
+            
+            # Shift the entire range based on bias
+            lower_bound += bias_adjustment
+            upper_bound += bias_adjustment
+            
+            # Target price is at center of adjusted range
             target_price = current_price + bias_adjustment
             
             # Probability of bullish move
@@ -234,6 +318,7 @@ class OptionsTracker:
                 'bullish_probability': bullish_prob,
                 'bias_score': bias_score,
                 'weekly_volatility': weekly_vol,
+                'iv_based': iv_data.get('valid', False) if iv_data else False,
                 'indicators': indicators
             }
         except Exception as e:
@@ -1131,8 +1216,46 @@ class OptionsTracker:
                           f"Target=${ticker_data['target_zone']:.2f}, "
                           f"Bias={ticker_data['bias_prob']:.2f}")
             except Exception as e:
-                print(f"Error processing {ticker}: {e}")
-                continue
+                print(f"Error adding {ticker} to watchlist: {e}")
+        
+        # Try to expand watchlist with high options volume tickers
+        try:
+            import yfinance as yf
+            import pandas as pd
+            from datetime import datetime, timedelta
+            
+            print("Expanding watchlist with high options volume tickers...")
+            
+            # Get market data for potential additions
+            # These are commonly tracked stocks with high options volume
+            potential_additions = [
+                'TSLA', 'NVDA', 'AAPL', 'AMD', 'PLTR', 
+                'COIN', 'MSFT', 'AMC', 'AMZN', 'BAC',
+                'SOFI', 'F', 'NIO', 'XOM', 'PYPL',
+                'T', 'PFE', 'DIS', 'UBER', 'BABA'
+            ]
+            
+            # Filter out tickers already in watchlist
+            potential_additions = [t for t in potential_additions if t not in watchlist]
+            
+            # Process potential additions
+            for ticker in potential_additions[:5]:  # Limit to 5 additions to keep processing fast
+                try:
+                    # Check if options are available
+                    stock = yf.Ticker(ticker)
+                    if not (hasattr(stock, 'options') and stock.options):
+                        continue
+                    
+                    # Calculate parameters
+                    ticker_data = self._calculate_ticker_parameters(ticker)
+                    if ticker_data:
+                        watchlist[ticker] = ticker_data
+                        print(f"Added high-volume {ticker} to watchlist: Price=${ticker_data['current_price']:.2f}, "
+                              f"Target=${ticker_data['target_zone']:.2f}")
+                except Exception as e:
+                    print(f"Error processing {ticker}: {e}")
+        except Exception as e:
+            print(f"Error expanding watchlist: {e}")
         
         print(f"Generated watchlist with {len(watchlist)} tickers")
         return watchlist

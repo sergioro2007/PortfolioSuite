@@ -1,61 +1,69 @@
 import sys
-sys.path.append('.')
+import os
+import unittest
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.options_tracker import OptionsTracker
 
-def test_dynamic_watchlist_generation():
+class TestDynamicWatchlist(unittest.TestCase):
     """Test the dynamic watchlist generation functionality"""
-    print('=== TESTING DYNAMIC WATCHLIST GENERATION ===')
-    tracker = OptionsTracker()
 
-    # Check if watchlist was generated
-    print(f'Watchlist has {len(tracker.watchlist)} tickers')
+    def setUp(self):
+        """Set up the test environment"""
+        self.tracker = OptionsTracker()
 
-    # Print first 5 tickers and their parameters
-    print('\nSample of watchlist tickers:')
-    for i, (ticker, data) in enumerate(list(tracker.watchlist.items())[:5]):
-        print(f'{ticker}: Price=${data["current_price"]:.2f}, ' +
-            f'Range=(${data["range_68"][0]:.2f}, ${data["range_68"][1]:.2f}), ' +
-            f'Target=${data["target_zone"]:.2f}, ' +
-            f'Bias={data["bias_prob"]:.2f}'
+    def test_watchlist_generation(self):
+        """Test that the watchlist is properly generated"""
+        # Check if watchlist was generated
+        self.assertGreater(len(self.tracker.watchlist), 0, "Watchlist should contain tickers")
+    
+    def test_watchlist_parameter_structure(self):
+        """Test that all tickers have the required parameters"""
+        # Verify all expected parameters exist
+        for ticker, data in self.tracker.watchlist.items():
+            for param in ['current_price', 'range_68', 'target_zone', 'bias_prob']:
+                self.assertIn(param, data, f"Ticker {ticker} is missing parameter '{param}'")
+
+    def test_watchlist_parameter_values(self):
+        """Test that parameter values are within expected ranges"""
+        # Check a sample of tickers (up to 10)
+        sample_tickers = list(self.tracker.watchlist.items())[:10]
+        
+        for ticker, data in sample_tickers:
+            # Check price is positive
+            self.assertGreater(
+                data['current_price'], 
+                0, 
+                f"Ticker {ticker} has invalid price: {data['current_price']}"
             )
-
-    # Verify all expected parameters exist
-    print('\nVerifying parameter structure:')
-    missing_params = []
-    for ticker, data in tracker.watchlist.items():
-        for param in ['current_price', 'range_68', 'target_zone', 'bias_prob']:
-            if param not in data:
-                missing_params.append((ticker, param))
-
-    if missing_params:
-        print('Missing parameters:')
-        for ticker, param in missing_params:
-            print(f'- {ticker}: missing {param}')
-    else:
-        print('✅ All tickers have the expected parameters')
-
-    # Verify parameter value ranges
-    print('\nVerifying parameter values:')
-    invalid_values = []
-    for ticker, data in tracker.watchlist.items():
-        # Check price is positive
-        if data['current_price'] <= 0:
-            invalid_values.append((ticker, 'current_price', data['current_price']))
-        
-        # Check range makes sense (low < high)
-        if data['range_68'][0] >= data['range_68'][1]:
-            invalid_values.append((ticker, 'range_68', data['range_68']))
-        
-        # Check bias probability is between 0 and 1
-        if not 0 <= data['bias_prob'] <= 1:
-            invalid_values.append((ticker, 'bias_prob', data['bias_prob']))
-
-    if invalid_values:
-        print('Invalid parameter values:')
-        for ticker, param, value in invalid_values:
-            print(f'- {ticker}: {param} = {value}')
-    else:
-        print('✅ All parameter values are within expected ranges')
+            
+            # Check range makes sense (low < high)
+            low, high = data['range_68']
+            self.assertLess(
+                low, 
+                high, 
+                f"Ticker {ticker} has invalid range: low={low}, high={high}"
+            )
+            
+            # Check bias probability is between 0 and 1
+            self.assertGreaterEqual(
+                data['bias_prob'], 
+                0, 
+                f"Ticker {ticker} has bias probability < 0: {data['bias_prob']}"
+            )
+            self.assertLessEqual(
+                data['bias_prob'], 
+                1, 
+                f"Ticker {ticker} has bias probability > 1: {data['bias_prob']}"
+            )
+    
+    def test_watchlist_diversity(self):
+        """Test that the watchlist includes a diverse set of tickers"""
+        # Ensure we have a reasonable number of tickers
+        self.assertGreaterEqual(
+            len(self.tracker.watchlist), 
+            10, 
+            "Watchlist should include at least 10 tickers"
+        )
 
 if __name__ == "__main__":
-    test_dynamic_watchlist_generation()
+    unittest.main()
