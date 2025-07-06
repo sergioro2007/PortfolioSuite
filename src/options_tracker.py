@@ -69,17 +69,9 @@ class OptionsTracker:
             "Protective Put"
         ]
         
-        # Watchlist tickers with current forecast data
-        self.watchlist = {
-            'SPY': {'current_price': 620.45, 'range_68': (615, 635), 'target_zone': 625, 'bias_prob': 0.70},
-            'QQQ': {'current_price': 550.80, 'range_68': (545, 572), 'target_zone': 559, 'bias_prob': 0.75},
-            'AAPL': {'current_price': 212.44, 'range_68': (210, 220), 'target_zone': 215, 'bias_prob': 0.70},
-            'MSFT': {'current_price': 491.09, 'range_68': (490, 507), 'target_zone': 498, 'bias_prob': 0.70},
-            'NVDA': {'current_price': 157.25, 'range_68': (152, 166), 'target_zone': 160, 'bias_prob': 0.70},
-            'TECL': {'current_price': 93.99, 'range_68': (85, 101), 'target_zone': 93, 'bias_prob': 0.70},
-            'XLE': {'current_price': 86.93, 'range_68': (84, 90), 'target_zone': 87, 'bias_prob': 0.60},
-            'SMH': {'current_price': 281.25, 'range_68': (255, 257), 'target_zone': 256, 'bias_prob': 0.60}
-        }
+        # Generate a dynamic watchlist with popular options-active tickers
+        # This replaces the previous hard-coded watchlist with real-time data
+        self.watchlist = self.generate_dynamic_watchlist()
     
     def load_trades(self) -> List[Dict]:
         """Load existing trades from file"""
@@ -323,368 +315,430 @@ class OptionsTracker:
         else:
             return {'recommendation': 'ADJUST', 'reason': 'Outside profit zone, consider adjustment'}
     
-    def generate_trade_suggestions(self, num_suggestions: int = 3) -> List[Dict]:
-        """Generate new trade suggestions based on market analysis"""
+    def generate_trade_suggestions(self, num_suggestions: int = 3, min_profit_target: float = 1.0) -> List[Dict]:
+        """Generate new trade suggestions based on market analysis
+        
+        Args:
+            num_suggestions: Target number of suggestions to generate
+            min_profit_target: Minimum profit target per share (default $1.00 = $100/contract)
+        """
         suggestions = []
         
         try:
-            # Analyze each ticker for opportunities
+            print(f"🔍 Analyzing tickers for trade opportunities (min profit target: ${min_profit_target:.2f}/share)")
+            
+            # Analyze each ticker for opportunities - generate MULTIPLE strategies per ticker
             for ticker, forecast in self.watchlist.items():
-                prediction = self.predict_price_range(ticker)
-                if not prediction:
+                # Process this ticker and try to generate suggestions for it
+                print(f"🔍 Processing {ticker}...")
+                
+                try:
+                    prediction = self.predict_price_range(ticker)
+                    if not prediction:
+                        print(f"  ⚠️ No prediction data for {ticker}, skipping")
+                        continue
+                    
+                    current_price = prediction['current_price']
+                    bullish_prob = prediction['bullish_probability']
+                    bias_score = prediction['bias_score']
+                    
+                    print(f"  � {ticker}: Price=${current_price:.2f}, Bias={bias_score:.3f}, Bullish={bullish_prob:.1%}")
+                    
+                    # Standard expiration date for all strategies
+                    expiration_date = "2025-08-01"
+                    
+                    # Try all three strategy types for each ticker
+                    self._try_bull_put_spread(ticker, prediction, expiration_date, min_profit_target, suggestions)
+                    self._try_bear_call_spread(ticker, prediction, expiration_date, min_profit_target, suggestions)
+                    self._try_iron_condor(ticker, prediction, expiration_date, min_profit_target, suggestions)
+                    
+                    # Break if we have enough suggestions
+                    if len(suggestions) >= num_suggestions * 2:  # Get more than needed, then sort and filter
+                        break
+                        
+                except Exception as e:
+                    print(f"  ❌ Error processing {ticker}: {e}")
                     continue
-                
-                current_price = prediction['current_price']
-                bullish_prob = prediction['bullish_probability']
-                bias_score = prediction['bias_score']
-                
-                print(f"🔍 {ticker}: Price=${current_price:.2f}, Bias={bias_score:.3f}, Bullish={bullish_prob:.1%}")
-                
-                # Generate strategy suggestions based on bias (very relaxed thresholds)
-                if bias_score > 0.02:  # Bullish bias (very relaxed)
-                    # Bull Put Spread - Use REAL available strikes
-                    expiration_date = "2025-08-01"
-                    short_strike = self.find_available_otm_strike(ticker, current_price, 0.055, 'put', expiration_date)
-                    long_strike = self.find_available_otm_strike(ticker, current_price, 0.08, 'put', expiration_date)
-                    option_prices = self.get_option_prices(ticker, [short_strike, long_strike], expiration_date, 'put')
-                    
-                    short_put_price = option_prices.get(f"PUT_{short_strike:g}", 0)
-                    long_put_price = option_prices.get(f"PUT_{long_strike:g}", 0)
-                    
-                    # Use fallback pricing only for missing prices
-                    if short_put_price == 0 or long_put_price == 0:
-                        fallback_prices = self._fallback_option_prices(ticker, [short_strike, long_strike], expiration_date, 'put')
-                        if short_put_price == 0:
-                            short_put_price = fallback_prices.get(f"PUT_{short_strike:g}", 2.0)
-                        if long_put_price == 0:
-                            long_put_price = fallback_prices.get(f"PUT_{long_strike:g}", 1.0)
-                    credit = short_put_price - long_put_price
-                    max_loss = (short_strike - long_strike) - credit
-                    profit_target = credit * 0.5
-                    
-                    # Filter: Only include suggestions with profit target >= $1.00 per share ($100 per contract)
-                    if profit_target < 1.0:
-                        print(f"   ❌ Skipping Bull Put Spread for {ticker}: Profit target ${profit_target:.2f} < $1.00 minimum")
-                        continue
-                    
-                    # Create detailed reasoning
-                    indicators = prediction.get('indicators', {})
-                    rsi = indicators.get('rsi', 50)
-                    macd = indicators.get('macd', 0)
-                    macd_signal = indicators.get('macd_signal', 0)
-                    momentum = indicators.get('momentum', 0)
-                    macd_status = "bullish" if macd > macd_signal else "bearish"
-                    
-                    # RSI status
-                    if rsi < 30:
-                        rsi_status = "(oversold - bullish)"
-                    elif rsi > 70:
-                        rsi_status = "(overbought - caution)"
-                    else:
-                        rsi_status = "(neutral)"
-                    
-                    reasoning = f"🐂 BULLISH BIAS DETECTED (Score: {bias_score:.2f})\n\n"
-                    reasoning += "📈 Technical Analysis:\n"
-                    reasoning += f"• RSI: {rsi:.1f} {rsi_status}\n"
-                    reasoning += f"• MACD: {macd_status} momentum\n"
-                    reasoning += f"• Price momentum: {momentum:.1f}%\n\n"
-                    reasoning += "🎯 Strategy: Bull Put Spread\n"
-                    reasoning += f"• Expectation: Price stays above ${short_strike:.2f}\n"
-                    reasoning += f"• Conservative strikes: ~5.5% below current price\n"
-                    reasoning += f"• Profit if {ticker} closes above ${short_strike:.2f} at expiration\n"
-                    reasoning += f"• Max profit: ${credit:.2f} (if price ≥ ${short_strike:.2f})\n"
-                    reasoning += f"• Max loss: ${max_loss:.2f} (if price ≤ ${long_strike:.2f})\n"
-                    reasoning += f"• Break-even: ${short_strike - credit:.2f}\n\n"
-                    reasoning += "⏰ Time Decay: Works in our favor as options lose value"
-                    
-                    suggestions.append({
-                        'ticker': ticker,
-                        'strategy': 'Bull Put Spread',
-                        'bias': 'Bullish',
-                        'bullish_prob': bullish_prob,
-                        'short_strike': short_strike,
-                        'long_strike': long_strike,
-                        'credit': credit,
-                        'max_loss': max_loss,
-                        'profit_target': profit_target,
-                        'expiration': expiration_date,
-                        'confidence': min(90, 50 + bias_score * 100),
-                        'reasoning': reasoning,
-                        'legs': sorted([
-                            {'action': 'SELL', 'type': 'PUT', 'strike': short_strike, 'price': short_put_price},
-                            {'action': 'BUY', 'type': 'PUT', 'strike': long_strike, 'price': long_put_price}
-                        ], key=lambda x: x['strike'])  # Sort by strike price (smallest first)
-                    })
-                
-                elif bias_score < -0.02:  # Bearish bias (very relaxed)
-                    print(f"🐻 Generating Bear Call Spread for {ticker} (bias: {bias_score:.3f})")
-                    # Bear Call Spread - Use REAL available strikes
-                    expiration_date = "2025-08-01"
-                    try:
-                        short_strike = self.find_available_otm_strike(ticker, current_price, 0.055, 'call', expiration_date)
-                        long_strike = self.find_available_otm_strike(ticker, current_price, 0.08, 'call', expiration_date)
-                        option_prices = self.get_option_prices(ticker, [short_strike, long_strike], expiration_date, 'call')
-                        
-                        short_call_price = option_prices.get(f"CALL_{short_strike:g}", 0)
-                        long_call_price = option_prices.get(f"CALL_{long_strike:g}", 0)
-                        
-                        print(f"   📊 Strikes: {short_strike}/{long_strike}, Prices: ${short_call_price:.2f}/${long_call_price:.2f}")
-                        
-                        # Use fallback pricing only for missing prices
-                        if short_call_price == 0 or long_call_price == 0:
-                            fallback_prices = self._fallback_option_prices(ticker, [short_strike, long_strike], expiration_date, 'call')
-                            if short_call_price == 0:
-                                short_call_price = fallback_prices.get(f"CALL_{short_strike:g}", 1.5)
-                            if long_call_price == 0:
-                                long_call_price = fallback_prices.get(f"CALL_{long_strike:g}", 0.5)
-                        credit = short_call_price - long_call_price
-                        max_loss = (long_strike - short_strike) - credit
-                        profit_target = credit * 0.5
-                        
-                        # Filter: Only include suggestions with profit target >= $1.00 per share ($100 per contract)
-                        if profit_target < 1.0:
-                            print(f"   ❌ Skipping Bear Call Spread for {ticker}: Profit target ${profit_target:.2f} < $1.00 minimum")
-                            continue
-                        
-                        print(f"   💰 Credit: ${credit:.2f}, Max Loss: ${max_loss:.2f}, Profit Target: ${profit_target:.2f}")
-                        
-                        # Create detailed reasoning
-                        indicators = prediction.get('indicators', {})
-                        rsi = indicators.get('rsi', 50)
-                        macd = indicators.get('macd', 0)
-                        macd_signal = indicators.get('macd_signal', 0)
-                        momentum = indicators.get('momentum', 0)
-                        macd_status = "bullish" if macd > macd_signal else "bearish"
-                        
-                        # RSI status
-                        if rsi > 70:
-                            rsi_status = "(overbought - bearish)"
-                        elif rsi < 30:
-                            rsi_status = "(oversold - caution)"
-                        else:
-                            rsi_status = "(neutral)"
-                        
-                        reasoning = f"🐻 BEARISH BIAS DETECTED (Score: {bias_score:.2f})\n\n"
-                        reasoning += "📉 Technical Analysis:\n"
-                        reasoning += f"• RSI: {rsi:.1f} {rsi_status}\n"
-                        reasoning += f"• MACD: {macd_status} momentum\n"
-                        reasoning += f"• Price momentum: {momentum:.1f}%\n\n"
-                        reasoning += "🎯 Strategy: Bear Call Spread\n"
-                        reasoning += f"• Expectation: Price stays below ${short_strike:.2f}\n"
-                        reasoning += "• Conservative strikes: ~5.5% above current price\n"
-                        reasoning += f"• Profit if {ticker} closes below ${short_strike:.2f} at expiration\n"
-                        reasoning += f"• Max profit: ${credit:.2f} (if price ≤ ${short_strike:.2f})\n"
-                        reasoning += f"• Max loss: ${max_loss:.2f} (if price ≥ ${long_strike:.2f})\n"
-                        reasoning += f"• Break-even: ${short_strike + credit:.2f}\n\n"
-                        reasoning += "⏰ Time Decay: Works in our favor as options lose value"
-                        
-                        print(f"   📝 Creating suggestion object...")
-                        suggestion = {
-                            'ticker': ticker,
-                            'strategy': 'Bear Call Spread',
-                            'bias': 'Bearish',
-                            'bullish_prob': bullish_prob,
-                            'short_strike': short_strike,
-                            'long_strike': long_strike,
-                            'credit': credit,
-                            'max_loss': max_loss,
-                            'profit_target': profit_target,
-                            'expiration': expiration_date,
-                            'confidence': min(90, 50 + abs(bias_score) * 100),
-                            'reasoning': reasoning,
-                            'legs': sorted([
-                                {'action': 'SELL', 'type': 'CALL', 'strike': short_strike, 'price': short_call_price},
-                                {'action': 'BUY', 'type': 'CALL', 'strike': long_strike, 'price': long_call_price}
-                            ], key=lambda x: x['strike'])  # Sort by strike price (smallest first)
-                        }
-                        
-                        suggestions.append(suggestion)
-                        print(f"   ✅ Added Bear Call Spread suggestion for {ticker}")
-                    except Exception as e:
-                        print(f"   ❌ Error generating Bear Call Spread for {ticker}: {e}")
-                        import traceback
-                        traceback.print_exc()
-                        continue
-                
-                else:  # Neutral bias
-                    # Iron Condor - Use REAL available strikes
-                    expiration_date = "2025-08-01"
-                    put_short = self.find_available_otm_strike(ticker, current_price, 0.055, 'put', expiration_date)
-                    put_long = self.find_available_otm_strike(ticker, current_price, 0.08, 'put', expiration_date)
-                    call_short = self.find_available_otm_strike(ticker, current_price, 0.055, 'call', expiration_date)
-                    call_long = self.find_available_otm_strike(ticker, current_price, 0.08, 'call', expiration_date)
-                    
-                    # Verify these strikes actually exist
-                    available_strikes = self.get_available_strikes(ticker, expiration_date)
-                    if available_strikes:
-                        # Double-check all strikes are available
-                        strikes_needed = [put_short, put_long, call_short, call_long]
-                        missing_strikes = [s for s in strikes_needed if s not in available_strikes]
-                        if missing_strikes:
-                            print(f"⚠️ Missing strikes for {ticker}: {missing_strikes}")
-                        else:
-                            print(f"✅ All Iron Condor strikes available for {ticker}: {strikes_needed}")
-                    
-                    strikes = [put_short, put_long, call_short, call_long]
-                    option_prices = self.get_option_prices(ticker, strikes, expiration_date, 'both')
-                    
-                    put_short_price = option_prices.get(f"PUT_{put_short:g}", 0)
-                    put_long_price = option_prices.get(f"PUT_{put_long:g}", 0)
-                    call_short_price = option_prices.get(f"CALL_{call_short:g}", 0)
-                    call_long_price = option_prices.get(f"CALL_{call_long:g}", 0)
-                
-                    # Use fallback pricing only for missing prices (mix real and fallback)
-                    missing_prices = []
-                    if put_short_price == 0:
-                        missing_prices.append(f"PUT_{put_short:g}")
-                    if put_long_price == 0:
-                        missing_prices.append(f"PUT_{put_long:g}")
-                    if call_short_price == 0:
-                        missing_prices.append(f"CALL_{call_short:g}")
-                    if call_long_price == 0:
-                        missing_prices.append(f"CALL_{call_long:g}")
-                    
-                    if missing_prices:
-                        fallback_prices = self._fallback_option_prices(ticker, strikes, expiration_date, 'both')
-                        # Only override missing prices, keep real prices
-                        if put_short_price == 0:
-                            put_short_price = fallback_prices.get(f"PUT_{put_short:g}", 1.5)
-                        if put_long_price == 0:
-                            put_long_price = fallback_prices.get(f"PUT_{put_long:g}", 1.0)
-                        if call_short_price == 0:
-                            call_short_price = fallback_prices.get(f"CALL_{call_short:g}", 1.0)
-                        if call_long_price == 0:
-                            call_long_price = fallback_prices.get(f"CALL_{call_long:g}", 0.5)
-                    
-                    credit = (put_short_price - put_long_price) + (call_short_price - call_long_price)
-                    max_loss = max((put_short - put_long), (call_long - call_short)) - credit
-                    profit_target = credit * 0.5
-                    
-                    # Filter: Only include suggestions with profit target >= $1.00 per share ($100 per contract)
-                    if profit_target < 1.0:
-                        print(f"   ❌ Skipping Iron Condor for {ticker}: Profit target ${profit_target:.2f} < $1.00 minimum")
-                        continue
-                    
-                    # Create detailed reasoning
-                    indicators = prediction.get('indicators', {})
-                    rsi = indicators.get('rsi', 50)
-                    macd = indicators.get('macd', 0)
-                    macd_signal = indicators.get('macd_signal', 0)
-                    momentum = indicators.get('momentum', 0)
-                    macd_status = "bullish" if macd > macd_signal else "bearish"
-                    
-                    reasoning = f"⚖️ NEUTRAL BIAS DETECTED (Score: {bias_score:.2f})\n\n"
-                    reasoning += "📊 Technical Analysis:\n"
-                    reasoning += f"• RSI: {rsi:.1f} (neutral territory)\n"
-                    reasoning += f"• MACD: {macd_status} momentum (mixed signals)\n"
-                    reasoning += f"• Price momentum: {momentum:.1f}% (sideways action)\n\n"
-                    reasoning += "🎯 Strategy: Iron Condor\n"
-                    reasoning += f"• Expectation: Price stays between ${put_short:.2f} and ${call_short:.2f}\n"
-                    reasoning += "• Conservative strikes: ~5.5% from current price\n"
-                    reasoning += f"• Profit zone: ${put_short:.2f} ≤ {ticker} ≤ ${call_short:.2f}\n"
-                    reasoning += f"• Max profit: ${credit:.2f} (if price stays in range)\n"
-                    reasoning += f"• Max loss: ${max_loss:.2f} (if price moves beyond wings)\n"
-                    reasoning += f"• Break-even points: ${put_short - credit:.2f} and ${call_short + credit:.2f}\n\n"
-                    reasoning += "⏰ Time Decay: Works strongly in our favor - all 4 options decay"
-                    
-                    suggestions.append({
-                        'ticker': ticker,
-                        'strategy': 'Iron Condor',
-                        'bias': 'Neutral',
-                        'bullish_prob': bullish_prob,
-                        'put_short_strike': put_short,
-                        'put_long_strike': put_long,
-                        'call_short_strike': call_short,
-                        'call_long_strike': call_long,
-                        'credit': credit,
-                        'max_loss': max_loss,
-                        'profit_target': credit * 0.5,
-                        'expiration': expiration_date,
-                        'confidence': min(90, 60 + abs(0.5 - bullish_prob) * 100),
-                        'reasoning': reasoning,
-                        'legs': sorted([
-                            {'action': 'SELL', 'type': 'PUT', 'strike': put_short, 'price': put_short_price},
-                            {'action': 'BUY', 'type': 'PUT', 'strike': put_long, 'price': put_long_price},
-                            {'action': 'SELL', 'type': 'CALL', 'strike': call_short, 'price': call_short_price},
-                            {'action': 'BUY', 'type': 'CALL', 'strike': call_long, 'price': call_long_price}
-                        ], key=lambda x: x['strike'])  # Sort by strike price (smallest first)
-                    })
             
             # Sort by confidence and return top suggestions
             suggestions.sort(key=lambda x: x['confidence'], reverse=True)
             
             # If no suggestions were generated, create some basic ones with relaxed criteria
             if not suggestions:
-                print("⚠️ No suggestions met strict criteria, generating with relaxed thresholds...")
-                for ticker, forecast in list(self.watchlist.items())[:3]:  # Try first 3 tickers
-                    prediction = self.predict_price_range(ticker)
-                    if not prediction:
-                        continue
-                    
-                    current_price = prediction['current_price']
-                    expiration_date = "2025-08-01"
-                    
-                    # Generate an Iron Condor for this ticker regardless of bias
-                    try:
-                        put_short = self.find_available_otm_strike(ticker, current_price, 0.055, 'put', expiration_date)
-                        put_long = self.find_available_otm_strike(ticker, current_price, 0.08, 'put', expiration_date)
-                        call_short = self.find_available_otm_strike(ticker, current_price, 0.055, 'call', expiration_date)
-                        call_long = self.find_available_otm_strike(ticker, current_price, 0.08, 'call', expiration_date)
-                        
-                        strikes = [put_short, put_long, call_short, call_long]
-                        option_prices = self.get_option_prices(ticker, strikes, expiration_date, 'both')
-                        
-                        put_short_price = option_prices.get(f"PUT_{put_short:g}", 1.5)
-                        put_long_price = option_prices.get(f"PUT_{put_long:g}", 1.0)
-                        call_short_price = option_prices.get(f"CALL_{call_short:g}", 1.0)
-                        call_long_price = option_prices.get(f"CALL_{call_long:g}", 0.5)
-                        
-                        credit = (put_short_price - put_long_price) + (call_short_price - call_long_price)
-                        max_loss = max((put_short - put_long), (call_long - call_short)) - credit
-                        fallback_profit_target = credit * 0.5
-                        
-                        # Filter: Only include suggestions with profit target >= $1.00 per share ($100 per contract)
-                        if fallback_profit_target < 1.0:
-                            print(f"   ❌ Skipping Fallback Iron Condor for {ticker}: Profit target ${fallback_profit_target:.2f} < $1.00 minimum")
-                            continue
-                        
-                        suggestions.append({
-                            'ticker': ticker,
-                            'strategy': 'Iron Condor',
-                            'bias': 'Neutral',
-                            'bullish_prob': 0.5,
-                            'put_short_strike': put_short,
-                            'put_long_strike': put_long,
-                            'call_short_strike': call_short,
-                            'call_long_strike': call_long,
-                            'credit': credit,
-                            'max_loss': max_loss,
-                            'profit_target': fallback_profit_target,
-                            'expiration': expiration_date,
-                            'confidence': 60,  # Medium confidence
-                            'reasoning': f"📊 NEUTRAL STRATEGY for {ticker}\n\nMarket showing mixed signals, using Iron Condor to profit from range-bound movement.\n\nProfit if {ticker} stays between ${put_short:.2f} and ${call_short:.2f} at expiration.",
-                            'legs': sorted([
-                                {'action': 'SELL', 'type': 'PUT', 'strike': put_short, 'price': put_short_price},
-                                {'action': 'BUY', 'type': 'PUT', 'strike': put_long, 'price': put_long_price},
-                                {'action': 'SELL', 'type': 'CALL', 'strike': call_short, 'price': call_short_price},
-                                {'action': 'BUY', 'type': 'CALL', 'strike': call_long, 'price': call_long_price}
-                            ], key=lambda x: x['strike'])
-                        })
-                        
-                        if len(suggestions) >= num_suggestions:
-                            break
-                    except Exception as e:
-                        print(f"Error generating fallback suggestion for {ticker}: {e}")
-                        continue
+                suggestions = self._generate_fallback_suggestions(min_profit_target)
             
+            print(f"✅ Generated {len(suggestions)} trade suggestions")
             return suggestions[:num_suggestions]
             
         except Exception as e:
             print(f"❌ Exception in generate_trade_suggestions: {e}")
             import traceback
             traceback.print_exc()
-            st.error(f"Error generating trade suggestions: {e}")
             return []
+    
+    def _try_bull_put_spread(self, ticker, prediction, expiration_date, min_profit_target, suggestions):
+        """Try to create a Bull Put Spread suggestion for this ticker"""
+        try:
+            print(f"  📊 Analyzing Bull Put Spread for {ticker}...")
+            
+            current_price = prediction['current_price']
+            bullish_prob = prediction['bullish_probability']
+            bias_score = prediction['bias_score']
+            
+            # Find appropriate strikes
+            short_strike = self.find_available_otm_strike(ticker, current_price, 0.055, 'put', expiration_date)
+            long_strike = self.find_available_otm_strike(ticker, current_price, 0.08, 'put', expiration_date)
+            option_prices = self.get_option_prices(ticker, [short_strike, long_strike], expiration_date, 'put')
+            
+            # Get prices
+            short_put_price = option_prices.get(f"PUT_{short_strike:g}", 0)
+            long_put_price = option_prices.get(f"PUT_{long_strike:g}", 0)
+            
+            # Use fallback pricing only for missing prices
+            if short_put_price == 0 or long_put_price == 0:
+                fallback_prices = self._fallback_option_prices(ticker, [short_strike, long_strike], expiration_date, 'put')
+                if short_put_price == 0:
+                    short_put_price = fallback_prices.get(f"PUT_{short_strike:g}", 2.0)
+                if long_put_price == 0:
+                    long_put_price = fallback_prices.get(f"PUT_{long_strike:g}", 1.0)
+            
+            # Calculate trade metrics
+            credit = short_put_price - long_put_price
+            max_loss = (short_strike - long_strike) - credit
+            profit_target = credit * 0.5
+            
+            # Filter: Only include suggestions with profit target >= configurable minimum
+            if profit_target < min_profit_target:
+                print(f"   ❌ Skipping Bull Put Spread for {ticker}: Profit target ${profit_target:.2f} < ${min_profit_target:.2f} minimum")
+                return False
+            
+            # Get indicators for reasoning
+            indicators = prediction.get('indicators', {})
+            rsi = indicators.get('rsi', 50)
+            macd = indicators.get('macd', 0)
+            macd_signal = indicators.get('macd_signal', 0)
+            momentum = indicators.get('momentum', 0)
+            macd_status = "bullish" if macd > macd_signal else "bearish"
+            
+            # RSI status
+            if rsi < 30:
+                rsi_status = "(oversold - bullish)"
+            elif rsi > 70:
+                rsi_status = "(overbought - caution)"
+            else:
+                rsi_status = "(neutral)"
+            
+            # Create reasoning
+            reasoning = f"🐂 BULLISH STRATEGY (Score: {bias_score:.2f})\n\n"
+            reasoning += "📈 Technical Analysis:\n"
+            reasoning += f"• RSI: {rsi:.1f} {rsi_status}\n"
+            reasoning += f"• MACD: {macd_status} momentum\n"
+            reasoning += f"• Price momentum: {momentum:.1f}%\n\n"
+            reasoning += "🎯 Strategy: Bull Put Spread\n"
+            reasoning += f"• Expectation: Price stays above ${short_strike:.2f}\n"
+            reasoning += f"• Conservative strikes: ~5.5% below current price\n"
+            reasoning += f"• Profit if {ticker} closes above ${short_strike:.2f} at expiration\n"
+            reasoning += f"• Max profit: ${credit:.2f}/share (${credit*100:.0f}/contract)\n"
+            reasoning += f"• Max loss: ${max_loss:.2f}/share (${max_loss*100:.0f}/contract)\n"
+            reasoning += f"• Break-even: ${short_strike - credit:.2f}\n\n"
+            reasoning += "⏰ Time Decay: Works in our favor as options lose value"
+            
+            # Create suggestion
+            suggestions.append({
+                'ticker': ticker,
+                'strategy': 'Bull Put Spread',
+                'bias': 'Bullish',
+                'bullish_prob': bullish_prob,
+                'short_strike': short_strike,
+                'long_strike': long_strike,
+                'credit': credit,
+                'max_loss': max_loss,
+                'profit_target': profit_target,
+                'expiration': expiration_date,
+                'confidence': min(90, 50 + bias_score * 100),
+                'reasoning': reasoning,
+                'legs': sorted([
+                    {'action': 'SELL', 'type': 'PUT', 'strike': short_strike, 'price': short_put_price},
+                    {'action': 'BUY', 'type': 'PUT', 'strike': long_strike, 'price': long_put_price}
+                ], key=lambda x: x['strike'])
+            })
+            
+            print(f"   ✅ Added Bull Put Spread for {ticker}: ${profit_target:.2f}/share profit target")
+            return True
+            
+        except Exception as e:
+            print(f"   ❌ Error generating Bull Put Spread for {ticker}: {e}")
+            return False
+    
+    def _try_bear_call_spread(self, ticker, prediction, expiration_date, min_profit_target, suggestions):
+        """Try to create a Bear Call Spread suggestion for this ticker"""
+        try:
+            print(f"  📊 Analyzing Bear Call Spread for {ticker}...")
+            
+            current_price = prediction['current_price']
+            bullish_prob = prediction['bullish_probability']
+            bias_score = prediction['bias_score']
+            
+            # Find appropriate strikes
+            short_strike = self.find_available_otm_strike(ticker, current_price, 0.055, 'call', expiration_date)
+            long_strike = self.find_available_otm_strike(ticker, current_price, 0.08, 'call', expiration_date)
+            option_prices = self.get_option_prices(ticker, [short_strike, long_strike], expiration_date, 'call')
+            
+            # Get prices
+            short_call_price = option_prices.get(f"CALL_{short_strike:g}", 0)
+            long_call_price = option_prices.get(f"CALL_{long_strike:g}", 0)
+            
+            # Use fallback pricing only for missing prices
+            if short_call_price == 0 or long_call_price == 0:
+                fallback_prices = self._fallback_option_prices(ticker, [short_strike, long_strike], expiration_date, 'call')
+                if short_call_price == 0:
+                    short_call_price = fallback_prices.get(f"CALL_{short_strike:g}", 1.5)
+                if long_call_price == 0:
+                    long_call_price = fallback_prices.get(f"CALL_{long_strike:g}", 0.5)
+            
+            # Calculate trade metrics
+            credit = short_call_price - long_call_price
+            max_loss = (long_strike - short_strike) - credit
+            profit_target = credit * 0.5
+            
+            # Filter: Only include suggestions with profit target >= configurable minimum
+            if profit_target < min_profit_target:
+                print(f"   ❌ Skipping Bear Call Spread for {ticker}: Profit target ${profit_target:.2f} < ${min_profit_target:.2f} minimum")
+                return False
+            
+            # Get indicators for reasoning
+            indicators = prediction.get('indicators', {})
+            rsi = indicators.get('rsi', 50)
+            macd = indicators.get('macd', 0)
+            macd_signal = indicators.get('macd_signal', 0)
+            momentum = indicators.get('momentum', 0)
+            macd_status = "bullish" if macd > macd_signal else "bearish"
+            
+            # RSI status
+            if rsi > 70:
+                rsi_status = "(overbought - bearish)"
+            elif rsi < 30:
+                rsi_status = "(oversold - caution)"
+            else:
+                rsi_status = "(neutral)"
+            
+            # Create reasoning
+            reasoning = f"🐻 BEARISH STRATEGY (Score: {bias_score:.2f})\n\n"
+            reasoning += "📉 Technical Analysis:\n"
+            reasoning += f"• RSI: {rsi:.1f} {rsi_status}\n"
+            reasoning += f"• MACD: {macd_status} momentum\n"
+            reasoning += f"• Price momentum: {momentum:.1f}%\n\n"
+            reasoning += "🎯 Strategy: Bear Call Spread\n"
+            reasoning += f"• Expectation: Price stays below ${short_strike:.2f}\n"
+            reasoning += "• Conservative strikes: ~5.5% above current price\n"
+            reasoning += f"• Profit if {ticker} closes below ${short_strike:.2f} at expiration\n"
+            reasoning += f"• Max profit: ${credit:.2f}/share (${credit*100:.0f}/contract)\n"
+            reasoning += f"• Max loss: ${max_loss:.2f}/share (${max_loss*100:.0f}/contract)\n"
+            reasoning += f"• Break-even: ${short_strike + credit:.2f}\n\n"
+            reasoning += "⏰ Time Decay: Works in our favor as options lose value"
+            
+            # Create suggestion
+            suggestions.append({
+                'ticker': ticker,
+                'strategy': 'Bear Call Spread',
+                'bias': 'Bearish',
+                'bullish_prob': bullish_prob,
+                'short_strike': short_strike,
+                'long_strike': long_strike,
+                'credit': credit,
+                'max_loss': max_loss,
+                'profit_target': profit_target,
+                'expiration': expiration_date,
+                'confidence': min(90, 50 + abs(bias_score) * 100),
+                'reasoning': reasoning,
+                'legs': sorted([
+                    {'action': 'SELL', 'type': 'CALL', 'strike': short_strike, 'price': short_call_price},
+                    {'action': 'BUY', 'type': 'CALL', 'strike': long_strike, 'price': long_call_price}
+                ], key=lambda x: x['strike'])
+            })
+            
+            print(f"   ✅ Added Bear Call Spread for {ticker}: ${profit_target:.2f}/share profit target")
+            return True
+            
+        except Exception as e:
+            print(f"   ❌ Error generating Bear Call Spread for {ticker}: {e}")
+            return False
+
+    def _try_iron_condor(self, ticker, prediction, expiration_date, min_profit_target, suggestions):
+        """Try to create an Iron Condor suggestion for this ticker"""
+        try:
+            print(f"  📊 Analyzing Iron Condor for {ticker}...")
+            
+            current_price = prediction['current_price']
+            bullish_prob = prediction['bullish_probability']
+            bias_score = prediction['bias_score']
+            
+            # Find appropriate strikes
+            put_short = self.find_available_otm_strike(ticker, current_price, 0.055, 'put', expiration_date)
+            put_long = self.find_available_otm_strike(ticker, current_price, 0.08, 'put', expiration_date)
+            call_short = self.find_available_otm_strike(ticker, current_price, 0.055, 'call', expiration_date)
+            call_long = self.find_available_otm_strike(ticker, current_price, 0.08, 'call', expiration_date)
+            
+            strikes = [put_short, put_long, call_short, call_long]
+            option_prices = self.get_option_prices(ticker, strikes, expiration_date, 'both')
+            
+            # Get prices
+            put_short_price = option_prices.get(f"PUT_{put_short:g}", 0)
+            put_long_price = option_prices.get(f"PUT_{put_long:g}", 0)
+            call_short_price = option_prices.get(f"CALL_{call_short:g}", 0)
+            call_long_price = option_prices.get(f"CALL_{call_long:g}", 0)
+            
+            # Use fallback pricing only for missing prices
+            missing_prices = [k for k, v in {
+                f"PUT_{put_short:g}": put_short_price, 
+                f"PUT_{put_long:g}": put_long_price,
+                f"CALL_{call_short:g}": call_short_price,
+                f"CALL_{call_long:g}": call_long_price
+            }.items() if v == 0]
+            
+            if missing_prices:
+                fallback_prices = self._fallback_option_prices(ticker, strikes, expiration_date, 'both')
+                if put_short_price == 0:
+                    put_short_price = fallback_prices.get(f"PUT_{put_short:g}", 1.5)
+                if put_long_price == 0:
+                    put_long_price = fallback_prices.get(f"PUT_{put_long:g}", 1.0)
+                if call_short_price == 0:
+                    call_short_price = fallback_prices.get(f"CALL_{call_short:g}", 1.0)
+                if call_long_price == 0:
+                    call_long_price = fallback_prices.get(f"CALL_{call_long:g}", 0.5)
+            
+            # Calculate trade metrics
+            credit = (put_short_price - put_long_price) + (call_short_price - call_long_price)
+            max_loss = max((put_short - put_long), (call_long - call_short)) - credit
+            profit_target = credit * 0.5
+            
+            # Filter: Only include suggestions with profit target >= configurable minimum
+            if profit_target < min_profit_target:
+                print(f"   ❌ Skipping Iron Condor for {ticker}: Profit target ${profit_target:.2f} < ${min_profit_target:.2f} minimum")
+                return False
+            
+            # Get indicators for reasoning
+            indicators = prediction.get('indicators', {})
+            rsi = indicators.get('rsi', 50)
+            macd = indicators.get('macd', 0)
+            macd_signal = indicators.get('macd_signal', 0)
+            momentum = indicators.get('momentum', 0)
+            macd_status = "bullish" if macd > macd_signal else "bearish"
+            
+            # Create reasoning
+            reasoning = f"⚖️ NEUTRAL STRATEGY (Score: {bias_score:.2f})\n\n"
+            reasoning += "📊 Technical Analysis:\n"
+            reasoning += f"• RSI: {rsi:.1f} (neutral territory)\n"
+            reasoning += f"• MACD: {macd_status} momentum (mixed signals)\n"
+            reasoning += f"• Price momentum: {momentum:.1f}% (sideways action)\n\n"
+            reasoning += "🎯 Strategy: Iron Condor\n"
+            reasoning += f"• Expectation: Price stays between ${put_short:.2f} and ${call_short:.2f}\n"
+            reasoning += "• Conservative strikes: ~5.5% from current price\n"
+            reasoning += f"• Profit zone: ${put_short:.2f} ≤ {ticker} ≤ ${call_short:.2f}\n"
+            reasoning += f"• Max profit: ${credit:.2f}/share (${credit*100:.0f}/contract)\n"
+            reasoning += f"• Max loss: ${max_loss:.2f}/share (${max_loss*100:.0f}/contract)\n"
+            reasoning += f"• Break-even points: ${put_short - credit:.2f} and ${call_short + credit:.2f}\n\n"
+            reasoning += "⏰ Time Decay: Works strongly in our favor - all 4 options decay"
+            
+            # Create suggestion
+            suggestions.append({
+                'ticker': ticker,
+                'strategy': 'Iron Condor',
+                'bias': 'Neutral',
+                'bullish_prob': bullish_prob,
+                'put_short_strike': put_short,
+                'put_long_strike': put_long,
+                'call_short_strike': call_short,
+                'call_long_strike': call_long,
+                'credit': credit,
+                'max_loss': max_loss,
+                'profit_target': profit_target,
+                'expiration': expiration_date,
+                'confidence': min(90, 60 + abs(0.5 - bullish_prob) * 100),
+                'reasoning': reasoning,
+                'legs': sorted([
+                    {'action': 'SELL', 'type': 'PUT', 'strike': put_short, 'price': put_short_price},
+                    {'action': 'BUY', 'type': 'PUT', 'strike': put_long, 'price': put_long_price},
+                    {'action': 'SELL', 'type': 'CALL', 'strike': call_short, 'price': call_short_price},
+                    {'action': 'BUY', 'type': 'CALL', 'strike': call_long, 'price': call_long_price}
+                ], key=lambda x: x['strike'])
+            })
+            
+            print(f"   ✅ Added Iron Condor for {ticker}: ${profit_target:.2f}/share profit target")
+            return True
+            
+        except Exception as e:
+            print(f"   ❌ Error generating Iron Condor for {ticker}: {e}")
+            return False
+            
+    def _generate_fallback_suggestions(self, min_profit_target: float) -> List[Dict]:
+        """Generate fallback suggestions when normal criteria don't yield enough trades"""
+        fallback_suggestions = []
+        print("⚠️ No suggestions met strict criteria, generating with relaxed thresholds...")
+        
+        try:
+            # Try the first 5 tickers in the watchlist
+            for ticker, forecast in list(self.watchlist.items())[:5]:
+                prediction = self.predict_price_range(ticker)
+                if not prediction:
+                    continue
+                
+                current_price = prediction['current_price']
+                expiration_date = "2025-08-01"
+                
+                # Try an Iron Condor (neutral strategy works for most market conditions)
+                put_short = self.find_available_otm_strike(ticker, current_price, 0.055, 'put', expiration_date)
+                put_long = self.find_available_otm_strike(ticker, current_price, 0.08, 'put', expiration_date)
+                call_short = self.find_available_otm_strike(ticker, current_price, 0.055, 'call', expiration_date)
+                call_long = self.find_available_otm_strike(ticker, current_price, 0.08, 'call', expiration_date)
+                
+                # Use fallback pricing (since this is already a fallback)
+                put_short_price = 1.5
+                put_long_price = 1.0
+                call_short_price = 1.0
+                call_long_price = 0.5
+                
+                credit = (put_short_price - put_long_price) + (call_short_price - call_long_price)
+                max_loss = max((put_short - put_long), (call_long - call_short)) - credit
+                profit_target = credit * 0.5
+                
+                # Still require minimum profit target
+                if profit_target < min_profit_target:
+                    print(f"   ❌ Skipping fallback for {ticker}: Profit target ${profit_target:.2f} < ${min_profit_target:.2f}")
+                    continue
+                
+                fallback_suggestions.append({
+                    'ticker': ticker,
+                    'strategy': 'Iron Condor',
+                    'bias': 'Neutral',
+                    'bullish_prob': 0.5,
+                    'put_short_strike': put_short,
+                    'put_long_strike': put_long,
+                    'call_short_strike': call_short,
+                    'call_long_strike': call_long,
+                    'credit': credit,
+                    'max_loss': max_loss,
+                    'profit_target': profit_target,
+                    'expiration': expiration_date,
+                    'confidence': 60,  # Medium confidence
+                    'reasoning': f"📊 FALLBACK STRATEGY for {ticker}\n\nUsing Iron Condor for potential range-bound profits.\nProfit if price stays between ${put_short:.2f} and ${call_short:.2f} at expiration.",
+                    'legs': sorted([
+                        {'action': 'SELL', 'type': 'PUT', 'strike': put_short, 'price': put_short_price},
+                        {'action': 'BUY', 'type': 'PUT', 'strike': put_long, 'price': put_long_price},
+                        {'action': 'SELL', 'type': 'CALL', 'strike': call_short, 'price': call_short_price},
+                        {'action': 'BUY', 'type': 'CALL', 'strike': call_long, 'price': call_long_price}
+                    ], key=lambda x: x['strike'])
+                })
+                
+                print(f"   ✅ Added fallback Iron Condor for {ticker}")
+                
+                if len(fallback_suggestions) >= 3:
+                    break
+                    
+        except Exception as e:
+            print(f"❌ Error generating fallback suggestions: {e}")
+        
+        return fallback_suggestions
     
     def add_trade(self, trade_data: Dict):
         """Add a new trade to the tracker"""
@@ -791,9 +845,9 @@ class OptionsTracker:
                             last = put_match['lastPrice'].iloc[0]
                             
                             if bid > 0 and ask > 0:
-                                price = (bid + ask) / 2
+                                price = (bid + ask) / 2  # Midpoint
                             else:
-                                price = last
+                                price = last if last > 0 else 0.01
                             
                             option_prices[f"PUT_{strike_key}"] = round(price, 2)
                     
@@ -808,9 +862,9 @@ class OptionsTracker:
                             last = call_match['lastPrice'].iloc[0]
                             
                             if bid > 0 and ask > 0:
-                                price = (bid + ask) / 2
+                                price = (bid + ask) / 2  # Midpoint
                             else:
-                                price = last
+                                price = last if last > 0 else 0.01
                             
                             option_prices[f"CALL_{strike_key}"] = round(price, 2)
                 
@@ -854,20 +908,20 @@ class OptionsTracker:
                     # Time value based on moneyness and volatility
                     moneyness = abs(strike - current_price) / current_price
                     
-                    if strike >= current_price:  # ITM puts
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.05
-                    elif moneyness <= 0.02:  # ATM
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.08
-                    elif moneyness <= 0.05:  # Near OTM
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.04
-                    elif moneyness <= 0.10:  # Moderate OTM
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.02
-                    else:  # Deep OTM
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.01
+                    if strike >= current_price:
+                        time_value = current_price * volatility * time_factor * 0.4
+                    elif moneyness <= 0.02:
+                        time_value = current_price * volatility * time_factor * 0.7
+                    elif moneyness <= 0.05:
+                        time_value = current_price * volatility * time_factor * 0.5
+                    elif moneyness <= 0.10:
+                        time_value = current_price * volatility * time_factor * 0.3
+                    else:
+                        time_value = current_price * volatility * time_factor * 0.1
                     
                     # Apply decay for very short term
                     if days_to_exp <= 30:
-                        time_value *= (days_to_exp / 30) ** 0.5
+                        time_value *= days_to_exp / 30
                     
                     price = intrinsic_put + time_value
                     option_prices[f"PUT_{strike_key}"] = round(max(0.01, price), 2)
@@ -877,26 +931,22 @@ class OptionsTracker:
                     intrinsic_call = max(0, current_price - strike)
                     
                     # Time value based on moneyness and volatility
-                    moneyness = abs(strike - current_price) / current_price
+                    moneyness = abs(current_price - strike) / current_price
                     
-                    if strike <= current_price:  # ITM calls
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.05
-                    elif moneyness <= 0.02:  # ATM
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.08
-                    elif moneyness <= 0.05:  # Near OTM
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.04
-                    elif moneyness <= 0.10:  # Moderate OTM
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.02
-                    else:  # Deep OTM
-                        time_value = current_price * volatility * (time_factor ** 0.5) * 0.005
+                    if strike <= current_price:
+                        time_value = current_price * volatility * time_factor * 0.4
+                    elif moneyness <= 0.02:
+                        time_value = current_price * volatility * time_factor * 0.7
+                    elif moneyness <= 0.05:
+                        time_value = current_price * volatility * time_factor * 0.5
+                    elif moneyness <= 0.10:
+                        time_value = current_price * volatility * time_factor * 0.3
+                    else:
+                        time_value = current_price * volatility * time_factor * 0.1
                     
-                    # Apply decay for very short term and deep OTM
+                    # Apply decay for very short term
                     if days_to_exp <= 30:
-                        time_value *= (days_to_exp / 30) ** 0.5
-                    
-                    # Further reduce deep OTM call values
-                    if moneyness > 0.15:
-                        time_value *= 0.3
+                        time_value *= days_to_exp / 30
                     
                     price = intrinsic_call + time_value
                     option_prices[f"CALL_{strike_key}"] = round(max(0.01, price), 2)
@@ -951,77 +1001,286 @@ class OptionsTracker:
         """Get actually available strikes for a specific ticker and expiration date"""
         try:
             stock = yf.Ticker(ticker)
-            expirations = stock.options
             
-            if not expirations:
-                print(f"⚠️ No option chain data for {ticker}")
+            # Check if options data is available
+            if not hasattr(stock, 'options') or not stock.options:
+                print(f"No options data available for {ticker}")
                 return []
             
-            # Check if the expiration date exists
-            if expiration_date not in expirations:
-                target_date = datetime.strptime(expiration_date, '%Y-%m-%d')
-                closest_exp = min(expirations, 
-                                key=lambda x: abs((datetime.strptime(x, '%Y-%m-%d') - target_date).days))
-                print(f"⚠️ {expiration_date} not available for {ticker}, using closest: {closest_exp}")
-                expiration_date = closest_exp
+            # Find the closest expiration to our target
+            target_date = datetime.strptime(expiration_date, '%Y-%m-%d').date()
+            closest_exp = None
+            min_diff = float('inf')
             
-            # Get option chain for the expiration
-            option_chain = stock.option_chain(expiration_date)
+            for exp_str in stock.options:
+                exp_date = datetime.strptime(exp_str, '%Y-%m-%d').date()
+                diff = abs((exp_date - target_date).days)
+                if diff < min_diff:
+                    min_diff = diff
+                    closest_exp = exp_str
             
-            # Combine all available strikes from puts and calls
-            available_strikes = set()
-            available_strikes.update(option_chain.calls['strike'].tolist())
-            available_strikes.update(option_chain.puts['strike'].tolist())
+            if not closest_exp:
+                return []
             
-            strikes_list = sorted(list(available_strikes))
-            print(f"✅ Found {len(strikes_list)} available strikes for {ticker} {expiration_date}")
-            return strikes_list
+            # Get option chain for the closest expiration
+            option_chain = stock.option_chain(closest_exp)
+            
+            # Extract all available strikes
+            calls_strikes = set(option_chain.calls['strike'])
+            puts_strikes = set(option_chain.puts['strike'])
+            
+            # Combine call and put strikes
+            available_strikes = calls_strikes.union(puts_strikes)
+            
+            return sorted(available_strikes)
             
         except Exception as e:
-            print(f"⚠️ Could not fetch available strikes for {ticker}: {e}")
+            print(f"Error getting available strikes for {ticker}: {e}")
             return []
 
     def find_available_otm_strike(self, ticker: str, current_price: float, distance_pct: float, 
                                   option_type: str, expiration_date: str) -> float:
         """Find an actually available OTM strike at approximately the given distance"""
-        target_price = current_price * (1 + distance_pct if option_type == 'call' else 1 - distance_pct)
-        
-        # Get actually available strikes
-        available_strikes = self.get_available_strikes(ticker, expiration_date)
-        
-        if not available_strikes:
-            print(f"⚠️ No available strikes found, falling back to theoretical calculation")
+        try:
+            # First try to get actually available strikes
+            available_strikes = self.get_available_strikes(ticker, expiration_date)
+            
+            if available_strikes:
+                # Calculate target strike price based on distance percentage
+                target_strike = self._calculate_target_strike(current_price, distance_pct, option_type)
+                
+                # Find the closest available strike to our target
+                closest_strike = min(available_strikes, 
+                                     key=lambda x: abs(x - target_strike))
+                
+                # Ensure strike is properly OTM
+                closest_strike = self._ensure_otm_strike(closest_strike, current_price, 
+                                                        option_type, available_strikes)
+                
+                return closest_strike
+            
+            # Fallback to theoretical calculation if no available strikes
+            print("No available strikes found, falling back to theoretical calculation")
             return self.find_otm_strikes(current_price, distance_pct, option_type)
+            
+        except Exception as e:
+            print(f"Error finding OTM strike for {ticker}: {e}")
+            return self.find_otm_strikes(current_price, distance_pct, option_type)
+    
+    def _calculate_target_strike(self, current_price: float, distance_pct: float, option_type: str) -> float:
+        """Helper to calculate target strike based on option type"""
+        if option_type == 'put':
+            # For puts, we want strikes below current price
+            return current_price * (1 - distance_pct)
+        else:
+            # For calls, we want strikes above current price
+            return current_price * (1 + distance_pct)
+    
+    def _ensure_otm_strike(self, strike: float, current_price: float, option_type: str, 
+                           available_strikes: List[float]) -> float:
+        """Helper to ensure strike is properly OTM based on option type"""
+        # For puts, ensure strike is below current price (OTM put)
+        if option_type == 'put' and strike >= current_price:
+            # Filter for strikes below current price
+            otm_strikes = [s for s in available_strikes if s < current_price]
+            if otm_strikes:
+                return max(otm_strikes)  # highest strike below current price
         
-        if option_type == 'call':
-            # Find first available strike above target
-            for strike in available_strikes:
-                if strike >= target_price:
-                    return strike
-            return available_strikes[-1]  # Return highest available if none found
-        else:  # put
-            # Find first available strike below target
-            for strike in reversed(available_strikes):
-                if strike <= target_price:
-                    return strike
-            return available_strikes[0]  # Return lowest available if none found
+        # For calls, ensure strike is above current price (OTM call)
+        elif option_type == 'call' and strike <= current_price:
+            # Filter for strikes above current price
+            otm_strikes = [s for s in available_strikes if s > current_price]
+            if otm_strikes:
+                return min(otm_strikes)  # lowest strike above current price
+        
+        return strike
 
-    def find_otm_strikes(self, current_price: float, distance_pct: float, option_type: str) -> float:
-        """Find realistic OTM strikes at approximately the given distance"""
-        target_price = current_price * (1 + distance_pct if option_type == 'call' else 1 - distance_pct)
+    def generate_dynamic_watchlist(self) -> Dict:
+        """
+        Dynamically generate a watchlist of popular options-active tickers.
         
-        # Get available strikes
-        strike_chain = self.get_strike_chain(current_price, 20)
+        Returns:
+            Dict: A dictionary of tickers with their calculated parameters:
+                - current_price: Current market price of the stock
+                - range_68: A tuple representing 68% probability range (1 std dev) for price movement
+                - target_zone: Predicted price target based on technical analysis
+                - bias_prob: Probability of a bullish move (>0.5 is bullish, <0.5 is bearish)
+        """
+        print("Generating dynamic watchlist of popular options-active tickers...")
+        watchlist = {}
         
-        if option_type == 'call':
-            # Find first strike above target
-            for strike in strike_chain:
-                if strike >= target_price:
-                    return strike
-            return strike_chain[-1]  # Return highest if none found
-        else:  # put
-            # Find first strike below target
-            for strike in reversed(strike_chain):
-                if strike <= target_price:
-                    return strike
-            return strike_chain[0]  # Return lowest if none found
+        # Start with popular ETFs and stocks known for options liquidity
+        popular_tickers = [
+            # Major ETFs
+            'SPY', 'QQQ', 'IWM', 'XLE', 'SMH', 'TECL',
+            # Large Cap Tech
+            'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA',
+            # Other High Volume Options Stocks
+            'AMD', 'INTC', 'CRM', 'NFLX'
+        ]
+        
+        # Process each ticker to get parameters
+        for ticker in popular_tickers:
+            try:
+                # Get stock data and calculate parameters
+                ticker_data = self._calculate_ticker_parameters(ticker)
+                if ticker_data:
+                    watchlist[ticker] = ticker_data
+                    print(f"Added {ticker} to watchlist: Price=${ticker_data['current_price']:.2f}, "
+                          f"Range=${ticker_data['range_68'][0]:.2f}-${ticker_data['range_68'][1]:.2f}, "
+                          f"Target=${ticker_data['target_zone']:.2f}, "
+                          f"Bias={ticker_data['bias_prob']:.2f}")
+            except Exception as e:
+                print(f"Error processing {ticker}: {e}")
+                continue
+        
+        print(f"Generated watchlist with {len(watchlist)} tickers")
+        return watchlist
+    
+    def _calculate_ticker_parameters(self, ticker: str) -> Optional[Dict]:
+        """
+        Calculate all necessary parameters for a ticker to be used in the watchlist.
+        
+        Parameters explained:
+        - current_price: The current market price of the stock (fetched from yfinance)
+        - range_68: A tuple representing the price range with 68% probability (one standard deviation)
+                   Calculated based on historical volatility and represents approximately
+                   where the price is expected to stay 68% of the time over the next week.
+        - target_zone: The predicted price target based on technical indicators and trend analysis
+                      This is a weighted calculation using moving averages, RSI, and price momentum.
+        - bias_prob: The probability of a bullish move (>0.5 is bullish bias, <0.5 is bearish)
+                    This is derived from technical indicators like RSI, MACD, and price momentum.
+        
+        Args:
+            ticker: The ticker symbol to analyze
+        
+        Returns:
+            Dict or None: Parameters for this ticker or None if unable to calculate
+        """
+        try:
+            # First get stock data from yfinance
+            stock = yf.Ticker(ticker)
+            hist = stock.history(period="3mo")  # 3 months of data
+            
+            if hist.empty:
+                print(f"No historical data for {ticker}")
+                return None
+            
+            # Calculate current price
+            current_price = hist['Close'].iloc[-1]
+            
+            # Calculate historical volatility
+            daily_returns = hist['Close'].pct_change().dropna()
+            hist_volatility = daily_returns.std() * np.sqrt(252)  # Annualized volatility
+            
+            # Calculate expected weekly volatility
+            weekly_vol = hist_volatility / np.sqrt(52)  # Weekly volatility
+            
+            # Calculate 68% probability range (1 standard deviation)
+            # 68% of the time, price should stay within this range for the next week
+            price_range_low = current_price * (1 - weekly_vol)
+            price_range_high = current_price * (1 + weekly_vol)
+            range_68 = (price_range_low, price_range_high)
+            
+            # Calculate technical indicators for bias calculation
+            indicators = self.get_technical_indicators(ticker)
+            
+            # Calculate bias score using technical indicators
+            bias_score = 0
+            
+            # RSI contribution to bias
+            rsi = indicators.get('rsi', 50)
+            if rsi > 70:  # Overbought
+                bias_score -= 0.15  # Bearish bias
+            elif rsi < 30:  # Oversold
+                bias_score += 0.15  # Bullish bias
+            
+            # MACD contribution to bias
+            macd = indicators.get('macd', 0)
+            macd_signal = indicators.get('macd_signal', 0)
+            if macd > macd_signal:
+                bias_score += 0.1  # Bullish momentum
+            else:
+                bias_score -= 0.1  # Bearish momentum
+            
+            # Moving average contribution
+            ma_20 = indicators.get('ma_20', current_price)
+            if current_price > ma_20:
+                bias_score += 0.1  # Price above MA20 is bullish
+            else:
+                bias_score -= 0.1  # Price below MA20 is bearish
+            
+            # Price momentum contribution
+            momentum = indicators.get('momentum', 0)
+            if momentum > 2:
+                bias_score += 0.1  # Strong upward momentum
+            elif momentum < -2:
+                bias_score -= 0.1  # Strong downward momentum
+            
+            # Convert bias score to probability (centered at 0.5)
+            bias_prob = 0.5 + (bias_score * 0.5)
+            bias_prob = max(0.1, min(0.9, bias_prob))  # Clamp between 0.1 and 0.9
+            
+            # Calculate target zone based on current price and bias
+            # More bullish = higher target, more bearish = lower target
+            bias_adjustment = current_price * bias_score * 0.01  # 1% per 0.1 bias_score
+            target_zone = current_price + bias_adjustment
+            
+            return {
+                'current_price': current_price,
+                'range_68': range_68,
+                'target_zone': target_zone,
+                'bias_prob': bias_prob
+            }
+            
+        except Exception as e:
+            print(f"Error calculating parameters for {ticker}: {e}")
+            return None
+    
+    def refresh_watchlist(self):
+        """
+        Refresh the watchlist with the latest market data.
+        Call this method to update all ticker data before generating trade suggestions.
+        """
+        print("Refreshing watchlist with latest market data...")
+        self.watchlist = self.generate_dynamic_watchlist()
+        print(f"Watchlist refreshed with {len(self.watchlist)} tickers")
+    
+    def expand_watchlist_with_high_options_volume(self, min_additional_tickers: int = 5):
+        """
+        Expand the existing watchlist with additional tickers that have high options volume.
+        This helps ensure we always have enough quality tickers to generate suggestions.
+        
+        Args:
+            min_additional_tickers: Minimum number of additional tickers to add
+        """
+        # In a production environment, this would query an API for high options volume
+        # For this implementation, we'll add additional tickers known for options liquidity
+        potential_additions = [
+            'JPM', 'BAC', 'C', 'WFC',  # Banks
+            'XLF', 'XLK', 'XLV', 'XLU', 'XLI',  # Sector ETFs
+            'BABA', 'JD', 'PDD',  # China tech
+            'UBER', 'LYFT', 'DASH',  # Gig economy
+            'COIN', 'SQ', 'PYPL',  # Fintech
+            'ROKU', 'DIS', 'CMCSA',  # Media
+            'MU', 'TSM', 'QCOM',  # Semiconductors
+            'F', 'GM', 'NIO'  # Auto
+        ]
+        
+        print(f"Expanding watchlist with high options volume tickers...")
+        added_count = 0
+        
+        for ticker in potential_additions:
+            if ticker in self.watchlist:
+                continue  # Skip if already in watchlist
+                
+            ticker_data = self._calculate_ticker_parameters(ticker)
+            if ticker_data:
+                self.watchlist[ticker] = ticker_data
+                added_count += 1
+                print(f"Added {ticker} to watchlist: Price=${ticker_data['current_price']:.2f}")
+                
+                if added_count >= min_additional_tickers:
+                    break
+        
+        print(f"Expanded watchlist with {added_count} additional tickers. Total tickers: {len(self.watchlist)}")
