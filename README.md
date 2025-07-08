@@ -1,63 +1,145 @@
-# Portfolio Management Suite v2.1
+# Portfolio Management Suite v2.0.0
 
-A comprehensive multi-feature investment analysis platform with professional-grade portfolio management tools for tactical, long-term, and options trading strategies.
+A comprehensive, multi-feature investment analysis platform with professional-grade portfolio management tools for tactical, long-term, and options trading strategies.
+
+---
 
 ## 🎯 Features Overview
 
-### ⚡ Tactical Momentum Portfolio Tracker
-**Purpose**: Short-term tactical opportunities and momentum investing
+- **Tactical Momentum Portfolio Tracker**: Automated momentum screening, real-time market health, dynamic cash allocation, and historical comparison.
+- **Long-Term Quality Stocks Tracker**: Fundamental quality screening, defensive sector focus, low volatility, and minimal rotation.
+- **Options Trading Tracker**: Weekly income targeting, multiple options strategies, technical analysis, and trade memory.
+- **Unified Web & CLI Interface**: Access all modules via browser or command line.
+- **Cross-Platform GUI**: Native desktop launcher for macOS and Windows.
 
-- Automated momentum screening with strict tactical rules
-- Real-time market health monitoring with 6-signal detection
-- Intelligent defensive cash allocation (0-30% based on market regime)
-- Two-tier position sizing (Strong Buy/Moderate Buy)
-- Weekly return targets (0.5-3% configurable)
-- Portfolio of up to 25 positions with high turnover
-- Historical comparison feature ("Changes Since Last Analysis")
-- Deterministic mode for consistent, reproducible results
+---
 
-### 🛡️ Long-Term Quality Stocks Tracker  
-**Purpose**: Conservative anchor portfolio for long-term investors
+## � Project Structure
 
-- Fundamental quality screening (ROE, profitability, dividends)
-- Defensive sector focus (Consumer Staples, Healthcare, Utilities)
-- Low volatility requirements (beta ≤ 1.2)
-- 5-year performance validation
-- Minimal weekly rotation
-- Portfolio of 10-15 quality stocks for stability
+```
+Portfolio-Management-Suite/
+├── portfolio_suite/              # Main application package
+│   ├── options_trading/          # Options module
+│   ├── tactical_tracker/         # Momentum module
+│   ├── trade_analysis/           # Analysis module
+│   ├── ui/                       # Web interface
+│   └── gui/                      # Desktop GUI
+├── .streamlit/                   # Streamlit configuration
+├── data/                         # Sample data
+├── tests/                        # Essential tests
+├── distribution_package/         # Ready-to-ship install package
+├── requirements.txt              # Python dependencies
+├── setup.py, pyproject.toml      # Packaging config
+├── quick_install.sh              # Auto installer
+├── INSTALLATION_PACKAGE_README.md# End-user install guide
+├── CLEANUP_SUMMARY.md            # Cleanup report
+└── README.md                     # This documentation
+```
 
-### 🎯 Options Trading Tracker *(NEW)*
-**Purpose**: Weekly income generation through systematic options strategies
+---
 
-- Bull Put Spreads, Bear Call Spreads, Broken Wing Butterflies, Iron Condors
-- Weekly $500+ income targeting with defined-risk strategies
-- 1-week price predictions using technical indicators (RSI, MACD, Bollinger Bands)
-- Automated trade evaluation with Hold/Close/Adjust recommendations
-- Complete trade memory and P&L tracking
-- Strategy performance analytics and optimization
-- Integration with OptionStrat for trade visualization
+## 🚀 Installation
 
-### 🔧 Advanced Features
+### **Recommended: Use the Distribution Package**
 
-#### 🤖 Deterministic Mode
-- **Consistent, reproducible analysis** across multiple runs
-- **Weekend date normalization** (uses Friday baseline)
-- **Standardized API calls** with consistent timestamps
-- **Professional backtesting** capabilities for strategy validation
-- **Toggle control** in Advanced Settings for testing vs. live analysis
+1. **Unzip** `portfolio_management_suite_v2.0.0_installation_package.zip`
+2. **Run the installer:**
+   ```bash
+   cd distribution_package
+   ./quick_install.sh
+   ```
+   This sets up a virtual environment, installs all dependencies, and creates launch scripts.
 
-#### 🛡️ Intelligent Defensive Cash Allocation
-**Automatic market regime detection** monitoring 6 real-time signals:
-1. **VIX > 30** (fear index threshold)
-2. **VIX Rising Trend** (increasing market fear)  
-3. **SPY below 20-day MA** (market weakness)
-4. **Market Breadth < 50%** (few stocks advancing)
-5. **High Volatility > 2.5%** (excessive daily price swings)
-6. **Negative Momentum** (10-day < 30-day moving averages)
+3. **For detailed instructions:**  
+   See `INSTALLATION_PACKAGE_README.md` in the package.
 
-**Dynamic cash allocation by market regime:**
-- **🟢 AGGRESSIVE** (0-1 signals): **0% cash** - Full stock allocation
-- **🟠 CAUTIOUS** (2 signals): **5% cash** - Small defensive buffer
+### **Manual Install (Advanced)**
+
+1. Create and activate a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
+2. Install the package:
+   ```bash
+   pip install distribution_package/portfolio_management_suite-2.0.0-py3-none-any.whl
+   pip install -r requirements.txt
+   ```
+
+---
+
+## 🎮 Usage
+
+### **Web Interface**
+```bash
+# From the project directory (after activating the environment)
+portfolio-suite --component web
+# Or use the launch_web.sh script created by the installer
+./launch_web.sh
+```
+Open your browser to [http://localhost:8501](http://localhost:8501)
+
+### **Full GUI Application**
+```bash
+portfolio-suite
+# Or use the launch_gui.sh script
+./launch_gui.sh
+```
+
+### **Command Line Analysis**
+```bash
+portfolio-suite --component options    # Options Trading
+portfolio-suite --component tactical   # Tactical Tracker
+portfolio-suite --component analysis   # Trade Analysis
+
+# Or direct module access:
+python -m portfolio_suite.trade_analysis.cli analyze AAPL
+python -m portfolio_suite.trade_analysis.cli suggest SPY QQQ
+python -m portfolio_suite.trade_analysis.cli summary
+```
+
+---
+
+## 🧪 Testing
+
+Run the essential test suite:
+```bash
+cd tests
+python run_tests.py
+```
+Or run individual test files as needed.
+
+---
+
+## 🛠️ Requirements
+
+- Python 3.8+
+- Internet connection (for real-time market data)
+- Web browser (for Streamlit interface)
+
+All dependencies are listed in `requirements.txt`.
+
+---
+
+## 📄 Documentation
+
+- **INSTALLATION_PACKAGE_README.md**: End-user installation and troubleshooting
+- **CLEANUP_SUMMARY.md**: Details of project cleanup and structure
+- **PORT_CONFIGURATION.md**: (Optional) Port customization info
+
+---
+
+## 🏆 Status
+
+- **Version**: 2.0.0
+- **Production Ready**: Yes
+- **Distribution Package**: `portfolio_management_suite_v2.0.0_installation_package.zip`
+
+---
+
+*For more details, see the full installation guide in your distribution package.*
+
+---
 - **🟡 DEFENSIVE** (3 signals): **15% cash** - Moderate risk reduction
 - **🔴 HIGHLY_DEFENSIVE** (4+ signals): **30% cash** - Significant capital preservation
 

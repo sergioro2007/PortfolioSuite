@@ -169,22 +169,9 @@ def show_options_trading():
         # Try absolute import first
         from portfolio_suite.options_trading import run_options_ui
         run_options_ui()
-    except ImportError:
-        try:
-            # Try relative import
-            from ..options_trading import run_options_ui
-            run_options_ui()
-        except ImportError:
-            st.error("Options trading module not found. Please check your installation.")
-            st.info("Fallback: Loading from legacy src directory...")
-            try:
-                # Fallback to src directory
-                sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
-                from options_tracker_ui import render_options_tracker
-                render_options_tracker()
-            except ImportError as e:
-                st.error(f"Could not load options trading module: {e}")
-                st.info("Please ensure the options trading module is properly installed.")
+    except ImportError as e:
+        st.error(f"Options trading module not found or failed to import: {e}")
+        st.info("Please ensure the options trading module is properly installed and available in your environment.")
 
 def show_tactical_tracker():
     """Show the tactical momentum tracker module"""

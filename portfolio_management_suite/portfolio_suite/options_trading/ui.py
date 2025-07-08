@@ -266,17 +266,18 @@ def render_dashboard(tracker: OptionsTracker):
     # Open trades summary
     if open_trades:
         st.subheader("🔗 Active Trades")
-        
+
+        # Build table with OptionStrat links for Ticker
         trades_data = []
         for trade in open_trades:
             evaluation = tracker.evaluate_trade(trade)
-            
-            # Options contracts are for 100 shares, so multiply by 100 for actual dollar amounts
             credit_per_contract = trade.get('credit', 0) * 100
             max_loss_per_contract = trade.get('max_loss', 0) * 100
-            
+            # Generate OptionStrat URL for this trade
+            optionstrat_url = generate_optionstrat_url(trade)
+            ticker_link = f"[**{trade['ticker']}**]({optionstrat_url})"
             trades_data.append({
-                'Ticker': trade['ticker'],
+                'Ticker': ticker_link,
                 'Strategy': trade['strategy'],
                 'Entry Date': trade['entry_date'],
                 'Expiration': trade['expiration'],
@@ -285,9 +286,9 @@ def render_dashboard(tracker: OptionsTracker):
                 'Recommendation': evaluation['recommendation'],
                 'Reason': evaluation['reason']
             })
-        
+
+        # Use st.write with st.markdown for clickable links
         df = pd.DataFrame(trades_data)
-        
         # Color code recommendations
         def highlight_recommendation(val):
             if val == 'CLOSE':
@@ -296,9 +297,12 @@ def render_dashboard(tracker: OptionsTracker):
                 return 'background-color: #fff4cc'
             else:
                 return 'background-color: #ccffcc'
-        
-        styled_df = df.style.applymap(highlight_recommendation, subset=['Recommendation'])
-        st.dataframe(styled_df, use_container_width=True)
+
+        # Show as HTML for clickable links
+        st.write("**Click ticker to view on OptionStrat**")
+        st.dataframe(df.style.applymap(highlight_recommendation, subset=['Recommendation']), use_container_width=True)
+        # Show as markdown table for links (Streamlit's dataframe disables links)
+        st.markdown(df.to_markdown(index=False), unsafe_allow_html=True)
     else:
         st.info("No active trades. Check the 'New Trades' tab for suggestions!")
 
