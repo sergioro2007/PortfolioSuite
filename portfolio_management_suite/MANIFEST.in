@@ -1,0 +1,10 @@
+# Include all Python source files
+recursive-include portfolio_suite *.py
+# Include all CSV and JSON data files
+recursive-include portfolio_suite/data *.csv
+recursive-include portfolio_suite/data *.json
+# Include all UI and GUI assets
+recursive-include portfolio_suite/ui/assets *
+recursive-include portfolio_suite/gui/assets *
+# Include any config files
+recursive-include portfolio_suite *.toml
