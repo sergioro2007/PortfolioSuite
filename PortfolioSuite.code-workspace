@@ -1,0 +1,58 @@
+{
+    "folders": [
+        {
+            "name": "Portfolio Management Suite",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "./.venv/bin/python",
+        "terminal.integrated.cwd": "${workspaceFolder}",
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/*.pyc": true,
+            "**/.DS_Store": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.black-formatter",
+            "ms-toolsai.jupyter",
+            "charliermarsh.ruff",
+            "ms-python.pylint",
+            "alexcvzz.vscode-sqlite"
+        ]
+    },
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Run Portfolio Suite",
+                "type": "shell",
+                "command": "${workspaceFolder}/.venv/bin/python",
+                "args": ["-m", "src.portfolio_suite"],
+                "group": "build",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                }
+            },
+            {
+                "label": "Run Tests",
+                "type": "shell",
+                "command": "${workspaceFolder}/.venv/bin/python",
+                "args": ["-m", "pytest", "tests/"],
+                "group": "test",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                }
+            }
+        ]
+    }
+}

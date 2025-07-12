@@ -1,0 +1,22 @@
+{
+    "python.defaultInterpreterPath": "./.venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        ".venv": false,
+        "**/.DS_Store": true
+    },
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.formatting.provider": "black",
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.pytestArgs": ["tests"],
+    "streamlit.pythonPath": "./.venv/bin/python",
+    "editor.formatOnSave": true,
+    "files.associations": {
+        "*.toml": "toml"
+    }
+}
