@@ -99,7 +99,7 @@ pytest>=7.4.0
 ## 🗂️ **Git Repository Status**
 
 ### **Repository Information:**
-- **Remote:** https://github.com/sergioro2007/Test.git
+- **Remote:** https://github.com/sergioro2007/PortfolioSuite.git
 - **Branch:** main
 - **Status:** Clean (all commits ready to push)
 
