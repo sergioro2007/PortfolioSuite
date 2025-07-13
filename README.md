@@ -4,6 +4,10 @@
 
 A comprehensive, production-ready portfolio management system with advanced algorithmic trading capabilities.
 
+> **📅 Last Updated:** July 13, 2025  
+> **🧪 Status:** 101+ tests passing | Clean repository | Ready for development  
+> **📊 Size:** 354MB focused workspace (optimized from 3.5GB)
+
 ### **Core Features**
 - **Tactical Momentum Tracker**: Advanced momentum analysis with 6-signal market health monitoring
 - **Options Trading System**: Weekly income strategies targeting $500/week
@@ -16,6 +20,23 @@ A comprehensive, production-ready portfolio management system with advanced algo
 - ✅ **Professional testing** with 85-100% coverage across modules
 - ✅ **Real-time market data** integration with yfinance
 - ✅ **Advanced risk management** with two-tier position sizing
+
+### **🚀 Quick Start**
+```bash
+# Verify environment (ALWAYS RUN FIRST)
+python check_and_run.py
+
+# Launch application
+python -m streamlit run src/portfolio_suite/__main__.py
+
+# Run comprehensive tests
+python -m pytest tests/ -v
+```
+
+### **📖 Documentation**
+- **QUICK_START.md** - Immediate setup checklist
+- **SESSION_HISTORY.md** - Complete development history
+- **TESTING_FRAMEWORK.md** - Testing methodology
 
 ---
 
