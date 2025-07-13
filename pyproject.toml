@@ -78,6 +78,7 @@ portfolio-analysis = "portfolio_suite.trade_analysis.cli:main"
 
 [tool.setuptools]
 packages = ["portfolio_suite"]
+package-dir = {"" = "src"}
 include-package-data = true
 
 [tool.setuptools.package-data]
@@ -113,7 +114,14 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
-    "--strict-config"
+    "--strict-config",
+    "--tb=short"
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "environment: marks tests that verify environment setup",
 ]
 
 [tool.mypy]
