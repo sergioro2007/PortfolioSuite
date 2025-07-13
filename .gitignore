@@ -1,0 +1,4 @@
+# Add to .gitignore to exclude build artifacts
+__pycache__/
+*.egg-info/
+.pytest_cache/
