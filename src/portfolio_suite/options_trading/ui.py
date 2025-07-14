@@ -7,25 +7,83 @@ Streamlit interface for the Options Trading Tracker
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 import sys
 import os
 
-# Add the src directory to Python path so modules can find each other
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the parent directories to Python path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+src_dir = os.path.dirname(parent_dir)
+for path in [current_dir, parent_dir, src_dir]:
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
-# Import the OptionsTracker from the current package
+# Import the OptionsTracker - try multiple import strategies
+OptionsTracker = None
+import_error = None
+
+# Strategy 1: Relative import (when running as module)
 try:
     from .core import OptionsTracker
-except ImportError:
-    # Fallback for backward compatibility
+except ImportError as e1:
+    import_error = str(e1)
+    
+    # Strategy 2: Direct import from same directory
     try:
-        from options_tracker import OptionsTracker
-    except ImportError:
-        # Use a placeholder if neither is available
-        class OptionsTracker:
-            def __init__(self):
+        from core import OptionsTracker
+    except ImportError as e2:
+        
+        # Strategy 3: Absolute import
+        try:
+            from portfolio_suite.options_trading.core import OptionsTracker
+        except ImportError as e3:
+            
+            # Strategy 4: Force the path and import
+            try:
+                import sys
+                core_path = os.path.join(current_dir, 'core.py')
+                if os.path.exists(core_path):
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("core", core_path)
+                    core_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(core_module)
+                    OptionsTracker = core_module.OptionsTracker
+                else:
+                    raise ImportError(f"Could not find core.py at {core_path}")
+            except Exception as e4:
+                # If all strategies fail, we'll show an error in the UI
                 pass
+
+# If import failed, show error in UI instead of crashing
+def show_import_error():
+    st.error("🚨 **Options Trading Module Import Error**")
+    st.warning(f"Failed to import OptionsTracker: {import_error}")
+    
+    with st.expander("🔧 Troubleshooting Steps", expanded=True):
+        st.write("**1. Check Virtual Environment:**")
+        st.code("source venv/bin/activate")
+        
+        st.write("**2. Install Dependencies:**")
+        st.code("pip install -r requirements.txt")
+        
+        st.write("**3. Verify File Structure:**")
+        st.write("Make sure these files exist:")
+        st.write("- `src/portfolio_suite/options_trading/core.py`")
+        st.write("- `src/portfolio_suite/options_trading/ui.py`")
+        
+        st.write("**4. Current Python Paths:**")
+        for i, path in enumerate(sys.path[:8]):
+            st.write(f"   {i+1}. `{path}`")
+    
+    st.info("💡 **Quick Fix:** Try restarting the application with:")
+    st.code("cd /Users/soliv112/PersonalProjects/PortfolioSuite && source venv/bin/activate && streamlit run options_direct.py")
+    
+    st.stop()  # Stop execution here
+
+if OptionsTracker is None:
+    show_import_error()
 
 def generate_descriptive_title(suggestion: dict) -> str:
     """Generate a descriptive title for a trade suggestion"""
@@ -470,10 +528,11 @@ def render_market_analysis(tracker: OptionsTracker):
         prediction = tracker.predict_price_range(selected_ticker)
         
         if prediction:
+            # Summary Section
             col1, col2 = st.columns(2)
             
             with col1:
-                st.write("**Price Prediction:**")
+                st.write("**📊 Price Prediction Summary:**")
                 st.write(f"Current: ${prediction['current_price']:.2f}")
                 st.write(f"Target: ${prediction['target_price']:.2f}")
                 st.write(f"Range: ${prediction['lower_bound']:.2f} - ${prediction['upper_bound']:.2f}")
@@ -481,166 +540,192 @@ def render_market_analysis(tracker: OptionsTracker):
             
             with col2:
                 indicators = prediction['indicators']
-                st.write("**Technical Indicators:**")
+                st.write("**📈 Technical Indicators:**")
                 st.write(f"RSI: {indicators.get('rsi', 0):.1f}")
                 st.write(f"MACD: {indicators.get('macd', 0):.3f}")
                 st.write(f"5-day MA: ${indicators.get('ma_5', 0):.2f}")
                 st.write(f"Volume Ratio: {indicators.get('volume_ratio', 0):.2f}x")
                 st.write(f"Momentum: {indicators.get('momentum', 0):.2f}%")
+            
+            # Mathematical Breakdown Section
+            st.subheader("🧮 Mathematical Calculation Breakdown")
+            
+            # Volatility Analysis
+            with st.expander("📊 Step 1: Volatility Analysis", expanded=True):
+                current_price = prediction['current_price']
+                weekly_vol = prediction['weekly_volatility']
+                iv_based = prediction.get('iv_based', False)
+                
+                st.write("**Volatility Source:**")
+                if iv_based:
+                    st.success("✅ Using Implied Volatility from options market")
+                    st.write("- More accurate as it reflects market expectations")
+                    st.write("- Derived from current option prices")
+                else:
+                    st.info("📊 Using Historical Volatility (IV unavailable)")
+                    st.write("- Based on past 3-month price movements")
+                    st.write("- Annualized volatility divided by √52 for weekly")
+                
+                st.write("**Calculation:**")
+                annual_vol = weekly_vol * np.sqrt(52)
+                st.code(f"""
+Weekly Volatility = {weekly_vol:.3f} ({weekly_vol:.1%})
+Annual Volatility = {annual_vol:.3f} ({annual_vol:.1%})
+Base Range = Current Price × Weekly Vol
+Base Range = ${current_price:.2f} × {weekly_vol:.3f} = ${current_price * weekly_vol:.2f}
+                """)
+            
+            # Technical Bias Calculation
+            with st.expander("⚖️ Step 2: Technical Bias Calculation", expanded=True):
+                rsi = indicators.get('rsi', 50)
+                macd = indicators.get('macd', 0)
+                macd_signal = indicators.get('macd_signal', 0)
+                momentum = indicators.get('momentum', 0)
+                bias_score = prediction.get('bias_score', 0)
+                
+                st.write("**Individual Bias Components:**")
+                
+                # RSI Bias
+                rsi_bias = 0
+                if rsi > 70:
+                    rsi_bias = -0.2
+                    st.write(f"🔴 RSI Bias: {rsi:.1f} > 70 (Overbought) → -0.2")
+                elif rsi < 30:
+                    rsi_bias = 0.2
+                    st.write(f"🟢 RSI Bias: {rsi:.1f} < 30 (Oversold) → +0.2")
+                # Calculate macd_bias and momentum_bias for total bias
+                macd_bias = 0.1 if macd > macd_signal else -0.1
+                momentum_bias = 0.1 if momentum > 2 else (-0.1 if momentum < -2 else 0.0)
+                st.write("**Total Bias Score:**")
+                st.code(f"""
+Total Bias = RSI + MACD + Momentum
+Total Bias = {rsi_bias:+.1f} + {macd_bias:+.1f} + {momentum_bias:+.1f} = {bias_score:+.2f}
+                """)
+                st.write("- Accounts for gaps and limit moves")
+                st.write("- Industry standard for volatility measurement")
+                annual_vol = weekly_vol * np.sqrt(52)
+                st.write("**📊 Historical Volatility - Comparison:**")
+                if iv_based:
+                    st.info("📈 Implied Volatility overlay available")
+                else:
+                    st.info("📊 Using historical volatility for IV comparison")
+                st.write("**Calculation Comparison:**")
+                st.write("**Individual Regime Components:**")
+                rsi_bias = -0.2 if rsi > 70 else (0.2 if rsi < 30 else 0.0)
+                if rsi > 70:
+                    st.write(f"🔴 RSI Bias: {rsi:.1f} > 70 (Overbought) → -0.2")
+                elif rsi < 30:
+                    st.write(f"🟢 RSI Bias: {rsi:.1f} < 30 (Oversold) → +0.2")
+                if prediction.get('iv_range'):
+                    st.write("**📈 Implied Volatility Overlay:**")
+                    st.code(f"IV Range: {prediction['iv_range']}")
 
+            # --- Dual-Model Step 2: Standardized Regime Scoring ---
+            with st.expander("⚖️ Step 2: Standardized Regime Scoring", expanded=True):
+                indicators = prediction['indicators']
+                rsi = indicators.get('rsi', 50)
+                macd = indicators.get('macd', 0)
+                macd_signal = indicators.get('macd_signal', 0)
+                momentum = indicators.get('momentum', 0)
+                regime_score = prediction.get('regime_score', 0)
+                st.write("**🎯 Dual-Model Specification Compliance:**")
+                st.write("Following exact algorithm from Dual_Model_Price_Prediction_Spec.md")
+                st.write("**Individual Regime Components:**")
+                rsi_bias = -0.2 if rsi > 70 else (0.2 if rsi < 30 else 0.0)
+                if rsi > 70:
+                    st.write(f"🔴 RSI Bias: {rsi:.1f} > 70 (Overbought) → -0.2")
+                elif rsi < 30:
+                    st.write(f"🟢 RSI Bias: {rsi:.1f} < 30 (Oversold) → +0.2")
+                else:
+                    st.write(f"🟡 RSI Bias: {rsi:.1f} (Neutral) → 0.0")
+                macd_bias = 0.1 if macd > macd_signal else -0.1
+                macd_direction = "Bullish" if macd > macd_signal else "Bearish"
+                macd_color = "🟢" if macd > macd_signal else "🔴"
+                st.write(f"{macd_color} MACD Bias: {macd:.3f} vs {macd_signal:.3f} ({macd_direction}) → {macd_bias:+.1f}")
+                momentum_bias = 0.1 if momentum > 2 else (-0.1 if momentum < -2 else 0.0)
+                if momentum > 2:
+                    st.write(f"🟢 Momentum Bias: {momentum:.2f}% > 2% (Strong Up) → +0.1")
+                elif momentum < -2:
+                    st.write(f"🔴 Momentum Bias: {momentum:.2f}% < -2% (Strong Down) → -0.1")
+                else:
+                    st.write(f"🟡 Momentum Bias: {momentum:.2f}% (Neutral) → 0.0")
+                st.write("**🧮 Regime Score Calculation:**")
 
-# Use a session state variable to control the edit form visibility
-def trade_form(tracker, mode="add", trade=None):
-    """Reusable form for adding or editing a trade."""
-    import streamlit as st
-    if mode == "add":
-        form_title = "Add New Trade Manually"
-        submit_label = "✅ Add Manual Trade"
-        expanded = True
-    else:
-        form_title = f"Edit Trade (ID: {trade['id']})"
-        submit_label = "💾 Save Changes"
-        expanded = st.session_state.get(f"show_edit_form_{trade['id']}", False)
-
-    with st.expander(form_title, expanded=expanded):
-        col1, col2 = st.columns(2)
-        with col1:
-            ticker = st.selectbox("Ticker:", list(tracker.watchlist.keys()), index=list(tracker.watchlist.keys()).index(trade['ticker']) if trade else 0, key=f"{mode}_ticker_{trade['id'] if trade else ''}")
-            strategy = st.selectbox("Strategy:", tracker.strategy_types, index=tracker.strategy_types.index(trade['strategy']) if trade else 0, key=f"{mode}_strategy_{trade['id'] if trade else ''}")
-            credit = st.number_input("Credit Received:", value=trade.get('credit', 0.0) if trade else 0.0, step=0.01, key=f"{mode}_credit_{trade['id'] if trade else ''}")
-            max_loss = st.number_input("Max Loss:", value=trade.get('max_loss', 0.0) if trade else 0.0, step=0.01, key=f"{mode}_max_loss_{trade['id'] if trade else ''}")
-            qty = st.number_input("Quantity:", value=trade.get('qty', 1) if trade else 1, min_value=1, step=1, key=f"{mode}_qty_{trade['id'] if trade else ''}")
-        with col2:
-            entry_date = st.date_input("Entry Date:", value=datetime.strptime(trade['entry_date'], '%Y-%m-%d') if trade and trade.get('entry_date') else datetime.now(), key=f"{mode}_entry_date_{trade['id'] if trade else ''}")
-            expiration = st.date_input("Expiration Date:", value=datetime.strptime(trade['expiration'], '%Y-%m-%d') if trade and trade.get('expiration') else datetime.now(), key=f"{mode}_expiration_{trade['id'] if trade else ''}")
-            notes = st.text_area("Trade Notes:", value=trade.get('notes', '') if trade else '', key=f"{mode}_notes_{trade['id'] if trade else ''}")
-
-        # Strategy-specific fields
-        if (trade and trade.get('strategy') in ["Bull Put Spread", "Bear Call Spread"]) or (not trade and strategy in ["Bull Put Spread", "Bear Call Spread"]):
-            col1, col2 = st.columns(2)
-            with col1:
-                short_strike = st.number_input("Short Strike:", value=trade.get('short_strike', 0.0) if trade else 0.0, step=0.01, key=f"{mode}_short_strike_{trade['id'] if trade else ''}")
-            with col2:
-                long_strike = st.number_input("Long Strike:", value=trade.get('long_strike', 0.0) if trade else 0.0, step=0.01, key=f"{mode}_long_strike_{trade['id'] if trade else ''}")
-        elif (trade and trade.get('strategy') == "Iron Condor") or (not trade and strategy == "Iron Condor"):
-            col1, col2 = st.columns(2)
-            with col1:
-                put_short_strike = st.number_input("Put Short Strike:", value=trade.get('put_short_strike', 0.0) if trade else 0.0, step=0.01, key=f"{mode}_put_short_{trade['id'] if trade else ''}")
-                put_long_strike = st.number_input("Put Long Strike:", value=trade.get('put_long_strike', 0.0) if trade else 0.0, step=0.01, key=f"{mode}_put_long_{trade['id'] if trade else ''}")
-            with col2:
-                call_short_strike = st.number_input("Call Short Strike:", value=trade.get('call_short_strike', 0.0) if trade else 0.0, step=0.01, key=f"{mode}_call_short_{trade['id'] if trade else ''}")
-                call_long_strike = st.number_input("Call Long Strike:", value=trade.get('call_long_strike', 0.0) if trade else 0.0, step=0.01, key=f"{mode}_call_long_{trade['id'] if trade else ''}")
-
-        if st.button(submit_label, type="primary", key=f"{mode}_submit_{trade['id'] if trade else ''}"):
-            trade_data = {
-                'ticker': ticker,
-                'strategy': strategy,
-                'credit': credit,
-                'max_loss': max_loss,
-                'qty': qty,
-                'entry_date': entry_date.strftime('%Y-%m-%d'),
-                'expiration': expiration.strftime('%Y-%m-%d'),
-                'notes': notes
-            }
-            if (trade and trade.get('strategy') in ["Bull Put Spread", "Bear Call Spread"]) or (not trade and strategy in ["Bull Put Spread", "Bear Call Spread"]):
-                trade_data['short_strike'] = short_strike
-                trade_data['long_strike'] = long_strike
-            elif (trade and trade.get('strategy') == "Iron Condor") or (not trade and strategy == "Iron Condor"):
-                trade_data['put_short_strike'] = put_short_strike
-                trade_data['put_long_strike'] = put_long_strike
-                trade_data['call_short_strike'] = call_short_strike
-                trade_data['call_long_strike'] = call_long_strike
-            if mode == "add":
-                tracker.add_trade(trade_data)
-                st.success(f"Added manual {strategy} trade for {ticker}!")
-            else:
-                tracker.edit_trade(trade['id'], trade_data)
-                st.success("Trade updated!")
-                st.session_state[f"show_edit_form_{trade['id']}"] = False
-            st.rerun()
+            # --- Dual-Model Step 3: Dual-Model Range Calculation ---
+            with st.expander("🎯 Step 3: Dual-Model Range Calculation", expanded=True):
+                current_price = prediction['current_price']
+                target_price = prediction.get('target_price', current_price)
+                atr_value = prediction.get('atr_value', 0)
+                regime_score = prediction.get('regime_score', 0)
+                lower_bound = prediction.get('lower_bound', current_price * 0.95)
+                upper_bound = prediction.get('upper_bound', current_price * 1.05)
+                
+                st.write("**🎯 Target Price Calculation (Spec):**")
+                bias_pct = regime_score * 0.01
+                
+                st.code(f"""
+Target Price = Current Price × (1 + Regime Score × 0.01)
+Target Price = ${current_price:.2f} × (1 + {regime_score:.2f} × 0.01)
+Target Price = ${current_price:.2f} × {1 + bias_pct:.4f}
+Target Price = ${target_price:.2f}
+                """)
+                
+                st.write("**🎯 Range Calculation:**")
+                st.code(f"""
+Lower Bound = ${lower_bound:.2f}
+Upper Bound = ${upper_bound:.2f}
+Range Width = ${upper_bound - lower_bound:.2f} ({((upper_bound - lower_bound) / current_price * 100):.1f}%)
+                """)
 
 def render_trade_management(tracker: OptionsTracker):
     """Render trade management interface"""
+    
     st.header("🔍 Trade Management")
-    st.subheader("➕ Add Manual Trade")
-    trade_form(tracker, mode="add")
-    st.divider()
+    
     open_trades = tracker.get_open_trades()
+    
     if not open_trades:
         st.info("No open trades to manage.")
         return
-    st.subheader("📋 Manage Existing Trades")
-    # Select trade to manage
-    trade_options = [f"{trade['ticker']} - {trade['strategy']} (ID: {trade['id']})" for trade in open_trades]
-    selected_trade_idx = st.selectbox("Select trade to manage:", range(len(trade_options)), format_func=lambda x: trade_options[x])
     
-    if selected_trade_idx is not None:
-        trade = open_trades[selected_trade_idx]
+    for trade in open_trades:
+        st.subheader(f"Trade #{trade['id']}: {trade['ticker']} {trade['strategy']}")
+        
         evaluation = tracker.evaluate_trade(trade)
-        
-        st.subheader(f"📋 Trade Details: {trade['ticker']}")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Options contracts are for 100 shares, so multiply by 100 for actual dollar amounts
-            credit_per_contract = trade.get('credit', 0) * 100
-            max_loss_per_contract = trade.get('max_loss', 0) * 100
-            
-            st.write(f"**Strategy:** {trade['strategy']}")
-            st.write(f"**Entry Date:** {trade['entry_date']}")
-            st.write(f"**Expiration:** {trade['expiration']}")
-            st.write(f"**Credit:** ${credit_per_contract:.0f} (${trade.get('credit', 0):.2f}/share)")
-            st.write(f"**Max Loss:** ${max_loss_per_contract:.0f} (${trade.get('max_loss', 0):.2f}/share)")
-        
-        with col2:
-            # Days to expiration
-            days_to_exp = (datetime.strptime(trade['expiration'], '%Y-%m-%d') - datetime.now()).days
-            st.metric("Days to Expiration", days_to_exp)
-            
-            # Current recommendation
-            rec_color = {"CLOSE": "🔴", "ADJUST": "🟡", "HOLD": "🟢"}
-            st.write(f"**Recommendation:** {rec_color.get(evaluation['recommendation'], '⚪')} {evaluation['recommendation']}")
-            st.write(f"**Reason:** {evaluation['reason']}")
-        
-        # Trade actions
-        st.subheader("⚡ Trade Actions")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("✅ Close Trade", type="primary"):
-                exit_price = st.number_input("Exit Price:", value=0.0, step=0.01, key="exit_price")
-                exit_reason = st.text_input("Exit Reason:", key="exit_reason")
+            st.write(f"**Entry Date:** {trade['entry_date']}")
+            st.write(f"**Expiration:** {trade['expiration']}")
+            st.write(f"**Credit:** ${trade.get('credit', 0) * 100:.0f}")
+            st.write(f"**Recommendation:** {evaluation['recommendation']}")
+            st.write(f"**Reason:** {evaluation['reason']}")
+        
+        with col2:
+            if st.button("✅ Close Trade", key=f"close_{trade['id']}", type="primary"):
+                exit_price = st.number_input("Exit Price:", value=0.0, step=0.01, key=f"exit_price_{trade['id']}")
+                exit_reason = st.text_input("Exit Reason:", key=f"exit_reason_{trade['id']}")
                 
                 if exit_price > 0 and exit_reason:
-                    if tracker.close_trade(trade['id'], exit_price, exit_reason):
+                    if hasattr(tracker, 'close_trade') and tracker.close_trade(trade['id'], exit_price, exit_reason):
                         st.success("Trade closed successfully!")
                         st.rerun()
                     else:
                         st.error("Failed to close trade.")
         
-        with col2:
-            if st.button("🔄 Adjust Trade", key=f"adjust_{trade['id']}"):
-                st.session_state[f"show_edit_form_{trade['id']}"] = not st.session_state.get(f"show_edit_form_{trade['id']}", False)
-                st.rerun()
-            if st.session_state.get(f"show_edit_form_{trade['id']}", False):
-                trade_form(tracker, mode="edit", trade=trade)
-
         with col3:
-            if st.button("🗑️ Delete Trade"):
-                if tracker.delete_trade(trade['id']):
+            if st.button("�️ Delete Trade", key=f"delete_{trade['id']}"):
+                if hasattr(tracker, 'delete_trade') and tracker.delete_trade(trade['id']):
                     st.success("Trade deleted!")
                     st.rerun()
                 else:
                     st.error("Failed to delete trade.")
         
-        with col3:
-            if st.button("📝 Add Note"):
-                st.info("Note-taking features coming soon!")
+        st.divider()
 
 def render_trade_history(tracker: OptionsTracker):
-    """Render trade history and analytics"""
+    # Render trade history and analytics
     
     st.header("📋 Trade History")
     
@@ -733,12 +818,16 @@ def render_trade_history(tracker: OptionsTracker):
         st.dataframe(strategy_df, use_container_width=True)
 
 def run_options_tracker_ui():
-    """Main entry point for the options tracker UI"""
+    # Main entry point for the options tracker UI
     render_options_tracker()
 
 def run_options_ui():
-    """Alternative entry point for the options tracker UI"""
+    # Alternative entry point for the options tracker UI.
     render_options_tracker()
 
 # Export the main function
 __all__ = ['render_options_tracker', 'run_options_tracker_ui', 'run_options_ui']
+
+# Run the app when executed as main
+if __name__ == "__main__":
+    render_options_tracker()
