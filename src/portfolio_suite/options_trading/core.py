@@ -915,6 +915,8 @@ class OptionsTracker:
                 ),
                 "strike_price": round(strike_price, 2),
                 "expiration": (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"),
+                "bias": "Bullish" if price_direction > 0 else "Bearish",
+                "bullish_prob": round(probability if price_direction > 0 else 1 - probability, 2),
             }
 
         except Exception as e:

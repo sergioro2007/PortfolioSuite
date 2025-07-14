@@ -119,10 +119,12 @@ def generate_descriptive_title(suggestion: dict) -> str:
     else:
         # Fallback for other strategies
         strikes_info = ""
-        if 'short_strike' in suggestion:
-            strikes_info = f"{suggestion['short_strike']:.0f}"
-            if 'long_strike' in suggestion:
-                strikes_info += f"/{suggestion['long_strike']:.0f}"
+        short_strike = suggestion.get('short_strike', suggestion.get('strike_price', 0))
+        if short_strike:
+            strikes_info = f"{short_strike:.0f}"
+            long_strike = suggestion.get('long_strike', 0)
+            if long_strike:
+                strikes_info += f"/{long_strike:.0f}"
     
     # Construct the descriptive title
     if strikes_info:
@@ -143,8 +145,8 @@ def generate_optionstrat_url(suggestion: dict) -> str:
     if strategy == 'Bull Put Spread':
         # Format: /bull-put-spread/TICKER/-.TICKER250801P575,.TICKER250801P580
         # SELL higher strike put, BUY lower strike put
-        short_strike = suggestion['short_strike']  # SELL (higher strike)
-        long_strike = suggestion['long_strike']    # BUY (lower strike)
+        short_strike = suggestion.get('short_strike', suggestion.get('strike_price', 0))
+        long_strike = suggestion.get('long_strike', short_strike - 5 if short_strike else 0)
         exp_date = suggestion.get('expiration', '2025-08-01')
         
         # Convert YYYY-MM-DD to YYMMDD format for option symbols
@@ -159,8 +161,8 @@ def generate_optionstrat_url(suggestion: dict) -> str:
     elif strategy == 'Bear Call Spread':
         # Format: /bear-call-spread/TICKER/-.TICKER250801C660,.TICKER250801C680
         # SELL lower strike call, BUY higher strike call
-        short_strike = suggestion['short_strike']  # SELL (lower strike)
-        long_strike = suggestion['long_strike']    # BUY (higher strike)
+        short_strike = suggestion.get('short_strike', suggestion.get('strike_price', 0))
+        long_strike = suggestion.get('long_strike', short_strike + 5 if short_strike else 0)
         exp_date = suggestion.get('expiration', '2025-08-01')
         
         # Convert YYYY-MM-DD to YYMMDD format for option symbols
@@ -174,10 +176,11 @@ def generate_optionstrat_url(suggestion: dict) -> str:
         
     elif strategy == 'Iron Condor':
         # OptionStrat Iron Condor format: .SPY250801P575,-.SPY250801P590,-.SPY250801C660,.SPY250801C680
-        put_long = suggestion['put_long_strike']
-        put_short = suggestion['put_short_strike'] 
-        call_short = suggestion['call_short_strike']
-        call_long = suggestion['call_long_strike']
+        base_strike = suggestion.get('strike_price', 0)
+        put_long = suggestion.get('put_long_strike', base_strike - 10 if base_strike else 0)
+        put_short = suggestion.get('put_short_strike', base_strike - 5 if base_strike else 0) 
+        call_short = suggestion.get('call_short_strike', base_strike + 5 if base_strike else 0)
+        call_long = suggestion.get('call_long_strike', base_strike + 10 if base_strike else 0)
         exp_date = suggestion.get('expiration', '2025-08-01')
         
         # Convert YYYY-MM-DD to YYMMDD format for option symbols
@@ -390,7 +393,7 @@ def render_new_trades(tracker: OptionsTracker):
                 with col1:
                     st.write(f"**Strategy:** {suggestion['strategy']}")
                     st.write(f"**Bias:** {suggestion['bias']} ({suggestion['bullish_prob']:.1%} bullish probability)")
-                    st.write(f"**Confidence:** {suggestion['confidence']:.0f}%")
+                    st.write(f"**Confidence:** {suggestion['confidence']}")
                     
                     # Show detailed reasoning if available
                     if 'reasoning' in suggestion:
@@ -423,32 +426,43 @@ def render_new_trades(tracker: OptionsTracker):
                     # Strategy details (fallback for older format)
                     else:
                         if suggestion['strategy'] == 'Bull Put Spread':
-                            st.write(f"**Short Put:** ${suggestion['short_strike']:.2f}")
-                            st.write(f"**Long Put:** ${suggestion['long_strike']:.2f}")
+                            short_strike = suggestion.get('short_strike', suggestion.get('strike_price', 0))
+                            long_strike = suggestion.get('long_strike', short_strike - 5 if short_strike else 0)
+                            st.write(f"**Short Put:** ${short_strike:.2f}")
+                            st.write(f"**Long Put:** ${long_strike:.2f}")
                         elif suggestion['strategy'] == 'Bear Call Spread':
-                            st.write(f"**Short Call:** ${suggestion['short_strike']:.2f}")
-                            st.write(f"**Long Call:** ${suggestion['long_strike']:.2f}")
+                            short_strike = suggestion.get('short_strike', suggestion.get('strike_price', 0))
+                            long_strike = suggestion.get('long_strike', short_strike + 5 if short_strike else 0)
+                            st.write(f"**Short Call:** ${short_strike:.2f}")
+                            st.write(f"**Long Call:** ${long_strike:.2f}")
                         elif suggestion['strategy'] == 'Iron Condor':
-                            st.write(f"**Put Spread:** ${suggestion['put_long_strike']:.2f} / ${suggestion['put_short_strike']:.2f}")
-                            st.write(f"**Call Spread:** ${suggestion['call_short_strike']:.2f} / ${suggestion['call_long_strike']:.2f}")
+                            put_short = suggestion.get('put_short_strike', suggestion.get('strike_price', 0))
+                            put_long = suggestion.get('put_long_strike', put_short - 5 if put_short else 0)
+                            call_short = suggestion.get('call_short_strike', suggestion.get('strike_price', 0))
+                            call_long = suggestion.get('call_long_strike', call_short + 5 if call_short else 0)
+                            st.write(f"**Put Spread:** ${put_long:.2f} / ${put_short:.2f}")
+                            st.write(f"**Call Spread:** ${call_short:.2f} / ${call_long:.2f}")
                 
                 with col2:
                     # Options contracts are for 100 shares, so multiply by 100 for actual dollar amounts
-                    credit_per_contract = suggestion['credit'] * 100
-                    max_loss_per_contract = suggestion['max_loss'] * 100
-                    profit_target_per_contract = suggestion['profit_target'] * 100
+                    credit_per_contract = suggestion.get('credit', suggestion.get('expected_profit', 0) / 100) * 100
+                    max_loss_per_contract = suggestion.get('max_loss', suggestion.get('risk', 0)) * 100
+                    profit_target_per_contract = suggestion.get('profit_target', suggestion.get('expected_profit', 0)) * 100
                     max_profit_per_contract = credit_per_contract  # Max profit = credit received
                     
                     # Display both spread price and contract value
+                    credit_per_share = suggestion.get('credit', suggestion.get('expected_profit', 0) / 100)
+                    max_loss_per_share = suggestion.get('max_loss', suggestion.get('risk', 0) / 100)
+                    
                     st.metric(
                         "Credit", 
                         f"${credit_per_contract:.0f}",
-                        delta=f"${suggestion['credit']:.2f}/share"
+                        delta=f"${credit_per_share:.2f}/share"
                     )
                     st.metric(
                         "Max Loss", 
                         f"${max_loss_per_contract:.0f}",
-                        delta=f"${suggestion['max_loss']:.2f}/share"
+                        delta=f"${max_loss_per_share:.2f}/share"
                     )
                     st.metric(
                         "Profit Target (50%)", 
