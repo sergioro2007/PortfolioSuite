@@ -26,4 +26,4 @@ except ImportError as e:
     print(
         "Make sure you're in the PortfolioSuite directory and virtual environment is activated."
     )
-    print("Try: source venv/bin/activate && python run_options_simple.py")
+    print("Try: source .venv/bin/activate && python run_options_simple.py")

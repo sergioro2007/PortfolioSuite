@@ -20,7 +20,7 @@ def test_chatgpt_algorithm():
     print("=" * 50)
 
     # Load ChatGPT results
-    chatgpt_df = pd.read_csv("Full_2-Week_Prediction_Table__July_26_.csv", index_col=0)
+    chatgpt_df = pd.read_csv("../data/Full_2-Week_Prediction_Table__July_26_.csv", index_col=0)
 
     tracker = OptionsTracker()
 
@@ -75,7 +75,7 @@ def test_multiple_multipliers():
     print("\n\n🔍 TESTING MULTIPLE MULTIPLIERS")
     print("=" * 40)
 
-    chatgpt_df = pd.read_csv("Full_2-Week_Prediction_Table__July_26_.csv", index_col=0)
+    chatgpt_df = pd.read_csv("../data/Full_2-Week_Prediction_Table__July_26_.csv", index_col=0)
     tracker = OptionsTracker()
 
     # Test different multipliers

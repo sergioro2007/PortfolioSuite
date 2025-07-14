@@ -43,7 +43,7 @@ def main():
         st.error(f"❌ Import Error: {e}")
         st.info("**Troubleshooting:**")
         st.write("1. Make sure you're in the PortfolioSuite directory")
-        st.write("2. Activate the virtual environment: `source venv/bin/activate`")
+        st.write("2. Activate the virtual environment: `source .venv/bin/activate`")
         st.write("3. Install dependencies: `pip install -r requirements.txt`")
 
         st.write("**Current Python path:**")

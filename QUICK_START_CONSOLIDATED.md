@@ -5,7 +5,8 @@
 Your clean Portfolio Management Suite workspace is ready for professional development.
 
 ### **📊 Workspace Summary**
-- **Size**: ~354MB (optimized from 2.5GB)  
+
+- **Size**: ~354MB (optimized from 2.5GB)
 - **Python Files**: 33 core files (clean codebase)
 - **Dependencies**: Fully installed and working
 - **Test Coverage**: 140+ tests with 99%+ pass rate
@@ -13,26 +14,30 @@ Your clean Portfolio Management Suite workspace is ready for professional develo
 ---
 
 ## 📋 **IMMEDIATE CHECKLIST**
+
 When reopening this workspace, do this FIRST:
 
 1. **📍 Verify Environment**
+
    ```bash
    cd /Users/soliv112/PersonalProjects/PortfolioSuite
    python scripts/check_and_run.py
    ```
-   *(This runs 9 verification checks + optional app launch)*
+
+   _(This runs 9 verification checks + optional app launch)_
 
 2. **🔍 Verify Tests**
    ```bash
    ./.venv/bin/python -m pytest tests/ --tb=short -q
    ```
-   *(Should show 140+ passing tests)*
+   _(Should show 140+ passing tests)_
 
 ---
 
 ## 🚀 **LAUNCH OPTIONS**
 
 ### Method 1: Main Application (RECOMMENDED)
+
 ```bash
 cd /Users/soliv112/PersonalProjects/PortfolioSuite
 source .venv/bin/activate
@@ -40,17 +45,19 @@ python -m streamlit run src/portfolio_suite/__main__.py --server.port=8506
 ```
 
 ### Method 2: Options Trading Direct
+
 ```bash
-cd /Users/soliv112/PersonalProjects/PortfolioSuite  
+cd /Users/soliv112/PersonalProjects/PortfolioSuite
 source .venv/bin/activate
 streamlit run options_direct.py --server.port=8507
 ```
 
 ### Method 3: Quick Launchers
+
 ```bash
 # Using the run scripts
 python run_app.py                    # Main app
-python run_options_tracker.py        # Options tracker  
+python run_options_tracker.py        # Options tracker
 python run_options_simple.py         # Simple options
 ```
 
@@ -59,6 +66,7 @@ python run_options_simple.py         # Simple options
 ## 📁 **WORKSPACE ORGANIZATION**
 
 ### **Root Directory** (Essential Files Only)
+
 - `README.md` - Main project documentation
 - `requirements.txt` - Dependencies
 - `pyproject.toml` - Project configuration
@@ -66,6 +74,7 @@ python run_options_simple.py         # Simple options
 - `run_*.py` - Application launchers
 
 ### **Key Directories**
+
 - `/src/` - Source code (main application)
 - `/tests/` - Test suite (140+ tests, organized by category)
 - `/data/` - Data files (CSV, PKL)
@@ -74,6 +83,7 @@ python run_options_simple.py         # Simple options
 - `/.venv/` - Virtual environment
 
 ### **Test Organization**
+
 - `/tests/test_*.py` - Core functional tests
 - `/tests/analysis/` - Algorithm analysis scripts
 - `/tests/debug/` - Debug utilities
@@ -84,14 +94,16 @@ python run_options_simple.py         # Simple options
 ## 🎯 **OPTIONS TRADING FEATURES**
 
 ### **Available Strategies**
+
 - Bull Put Spreads
-- Bear Call Spreads  
+- Bear Call Spreads
 - Iron Condors
 - Short Strangles
 - Cash Secured Puts
 - Covered Calls
 
 ### **Key Features**
+
 - **Dual-Model Price Prediction** - Enhanced ATR + regime scoring
 - **OptionStrat Integration** - Direct links to strategy analysis
 - **Weekly Income Tracking** - Target $500/week strategies
@@ -103,6 +115,7 @@ python run_options_simple.py         # Simple options
 ## 🔧 **TROUBLESHOOTING**
 
 ### **If Import Errors Occur:**
+
 ```bash
 # Reactivate environment
 source .venv/bin/activate
@@ -115,6 +128,7 @@ python scripts/verify_installation.py
 ```
 
 ### **If Tests Fail:**
+
 ```bash
 # Run specific test categories
 ./.venv/bin/python -m pytest tests/test_core.py -v
@@ -122,6 +136,7 @@ python scripts/verify_installation.py
 ```
 
 ### **If Streamlit Issues:**
+
 ```bash
 # Clear Streamlit cache
 streamlit cache clear
@@ -135,6 +150,7 @@ streamlit run options_direct.py --server.port=8508
 ## 📈 **DEVELOPMENT WORKFLOW**
 
 1. **Start Development Session**
+
    ```bash
    cd /Users/soliv112/PersonalProjects/PortfolioSuite
    source .venv/bin/activate
@@ -142,6 +158,7 @@ streamlit run options_direct.py --server.port=8508
    ```
 
 2. **Run Tests During Development**
+
    ```bash
    ./.venv/bin/python -m pytest tests/ --tb=short
    ```

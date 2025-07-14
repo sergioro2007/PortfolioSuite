@@ -63,7 +63,7 @@ def show_import_error():
     
     with st.expander("🔧 Troubleshooting Steps", expanded=True):
         st.write("**1. Check Virtual Environment:**")
-        st.code("source venv/bin/activate")
+        st.code("source .venv/bin/activate")
         
         st.write("**2. Install Dependencies:**")
         st.code("pip install -r requirements.txt")
@@ -78,7 +78,7 @@ def show_import_error():
             st.write(f"   {i+1}. `{path}`")
     
     st.info("💡 **Quick Fix:** Try restarting the application with:")
-    st.code("cd /Users/soliv112/PersonalProjects/PortfolioSuite && source venv/bin/activate && streamlit run options_direct.py")
+    st.code("cd /Users/soliv112/PersonalProjects/PortfolioSuite && source .venv/bin/activate && streamlit run options_direct.py")
     
     st.stop()  # Stop execution here
 
@@ -257,6 +257,41 @@ def render_options_tracker():
     
     tracker = st.session_state.options_tracker
     
+    # Network status check and display
+    network_status = tracker.check_network_status()
+    
+    # Display network status
+    st.sidebar.header("🌐 Network Status")
+    if network_status['is_online']:
+        st.sidebar.success(network_status['status_message'])
+        st.sidebar.caption(f"Last checked: {network_status.get('last_check', 'Unknown')}")
+    else:
+        st.sidebar.error(network_status['status_message'])
+        st.sidebar.caption(f"Last checked: {network_status.get('last_check', 'Unknown')}")
+        
+        # Show specific guidance for corporate networks
+        if network_status['network_type'] == 'corporate_blocked':
+            with st.sidebar.expander("🏢 Corporate Network Solutions", expanded=True):
+                st.write("**Recommended Solutions:**")
+                for i, rec in enumerate(network_status['recommendations'], 1):
+                    st.write(f"{i}. {rec}")
+                
+                st.write("**Technical Details:**")
+                st.write("• DNS resolution blocked for external domains")
+                st.write("• Yahoo Finance APIs inaccessible")
+                st.write("• Alternative: Use mobile hotspot")
+                
+                st.info("💡 **Tip**: Application works fully from home networks")
+        
+        # Show limited functionality warning
+        st.warning("⚠️ **Limited Functionality**: Some features require internet access to financial data sources.")
+    
+    # Add network refresh button
+    if st.sidebar.button("🔄 Check Network Now", help="Force immediate network connectivity check"):
+        # Force a fresh check using the dedicated method
+        st.session_state.options_tracker.force_network_recheck()
+        st.rerun()
+    
     # Main tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📊 Dashboard", 
@@ -331,21 +366,30 @@ def render_dashboard(tracker: OptionsTracker):
         # Build table with OptionStrat links for Ticker
         trades_data = []
         for trade in open_trades:
-            evaluation = tracker.evaluate_trade(trade)
+            try:
+                evaluation = tracker.evaluate_trade(trade)
+            except Exception:
+                evaluation = {'recommendation': 'REVIEW', 'reason': 'Error evaluating trade'}
+                
             credit_per_contract = trade.get('credit', 0) * 100
             max_loss_per_contract = trade.get('max_loss', 0) * 100
+            
             # Generate OptionStrat URL for this trade
-            optionstrat_url = generate_optionstrat_url(trade)
-            ticker_link = f"[**{trade['ticker']}**]({optionstrat_url})"
+            try:
+                optionstrat_url = generate_optionstrat_url(trade)
+                ticker_link = f"[**{trade.get('ticker', 'UNKNOWN')}**]({optionstrat_url})"
+            except Exception:
+                ticker_link = trade.get('ticker', 'UNKNOWN')
+                
             trades_data.append({
                 'Ticker': ticker_link,
-                'Strategy': trade['strategy'],
-                'Entry Date': trade['entry_date'],
-                'Expiration': trade['expiration'],
+                'Strategy': trade.get('strategy', 'UNKNOWN'),
+                'Entry Date': trade.get('entry_date', 'N/A'),
+                'Expiration': trade.get('expiration', 'N/A'),
                 'Credit': f"${credit_per_contract:.0f} (${trade.get('credit', 0):.2f})",
                 'Max Loss': f"${max_loss_per_contract:.0f} (${trade.get('max_loss', 0):.2f})",
-                'Recommendation': evaluation['recommendation'],
-                'Reason': evaluation['reason']
+                'Recommendation': evaluation.get('recommendation', 'REVIEW'),
+                'Reason': evaluation.get('reason', 'No evaluation available')
             })
 
         # Use st.write with st.markdown for clickable links
@@ -372,11 +416,40 @@ def render_new_trades(tracker: OptionsTracker):
     
     st.header("💡 Trade Suggestions")
     
+    # Check network connectivity first
+    network_status = tracker.check_network_status()
+    
+    if not network_status.get('is_online', True):
+        st.warning("⚠️ **Trade suggestions unavailable** - Requires internet access for market data")
+        
+        if network_status.get('network_type') == 'corporate_blocked':
+            st.info("🏢 **Corporate Network**: Trade generation requires external financial data sources")
+            
+            with st.expander("🔧 Solutions for Trade Generation", expanded=True):
+                st.write("**To generate new trade suggestions:**")
+                st.write("• Use mobile hotspot for data connectivity")
+                st.write("• Access from home network") 
+                st.write("• Request IT to whitelist financial APIs")
+                
+                st.write("**Available Features:**")
+                st.write("• Trade management (existing trades)")
+                st.write("• Trade history and analysis")
+                st.write("• Manual trade entry")
+        
+        st.info("💡 You can still manually add trades or manage existing positions")
+        return
+    
     # Generate suggestions
     if st.button("🔄 Generate New Suggestions", type="primary"):
         with st.spinner("Analyzing markets and generating trade ideas..."):
-            suggestions = tracker.generate_trade_suggestions(3)
-            st.session_state.trade_suggestions = suggestions
+            try:
+                suggestions = tracker.generate_trade_suggestions(3)
+                st.session_state.trade_suggestions = suggestions
+            except Exception as e:
+                st.error(f"Unable to generate suggestions: {str(e)}")
+                if "DNS" in str(e) or "resolve" in str(e):
+                    st.info("This appears to be a network connectivity issue. Try from a different network.")
+                return
     
     # Show suggestions
     if hasattr(st.session_state, 'trade_suggestions'):
@@ -508,27 +581,52 @@ def render_market_analysis(tracker: OptionsTracker):
     
     st.header("📈 Market Analysis & Predictions")
     
+    # Check network connectivity for market data
+    network_status = tracker.check_network_status()
+    if not network_status.get('is_online', True):
+        st.warning("⚠️ **Market data unavailable** - Network connectivity required for real-time analysis")
+        
+        if network_status.get('network_type') == 'corporate_blocked':
+            st.info("🏢 **Corporate Network Detected**: Market analysis requires external data sources that may be blocked by your corporate firewall.")
+            
+            with st.expander("💡 Alternative Solutions", expanded=True):
+                st.write("**Options:**")
+                st.write("1. **Mobile Hotspot**: Use mobile data for market analysis")
+                st.write("2. **Home Network**: Full functionality available outside corporate network")
+                st.write("3. **IT Request**: Ask IT to whitelist financial data domains")
+                st.write("4. **VPN**: If permitted, use VPN to access external data")
+        
+        st.info("📊 **Offline Mode**: Trade management and history features remain available")
+        return
+    
     # Watchlist analysis
     st.subheader("📊 Watchlist Forecast")
     
     forecast_data = []
-    for ticker, forecast in tracker.watchlist.items():
-        prediction = tracker.predict_price_range(ticker)
-        
-        if prediction:
-            forecast_data.append({
-                'Ticker': ticker,
-                'Current Price': f"${prediction['current_price']:.2f}",
-                '68% Range': f"${prediction['lower_bound']:.2f} - ${prediction['upper_bound']:.2f}",
-                'Target Zone': f"${prediction['target_price']:.2f}",
-                'Bullish Prob': f"{prediction['bullish_probability']:.1%}",
-                'Bias Score': f"{prediction['bias_score']:.2f}",
-                'Weekly Vol': f"{prediction['weekly_volatility']:.1%}"
-            })
+    try:
+        for ticker, forecast in tracker.watchlist.items():
+            prediction = tracker.predict_price_range(ticker)
+            
+            if prediction:
+                forecast_data.append({
+                    'Ticker': ticker,
+                    'Current Price': f"${prediction['current_price']:.2f}",
+                    '68% Range': f"${prediction['lower_bound']:.2f} - ${prediction['upper_bound']:.2f}",
+                    'Target Zone': f"${prediction['target_price']:.2f}",
+                    'Bullish Prob': f"{prediction['bullish_probability']:.1%}",
+                    'Bias Score': f"{prediction['bias_score']:.2f}",
+                    'Weekly Vol': f"{prediction['weekly_volatility']:.1%}"
+                })
+    except Exception as e:
+        st.error(f"Unable to fetch market data: {str(e)}")
+        st.info("This may be due to network restrictions or external API limitations.")
+        return
     
     if forecast_data:
         df = pd.DataFrame(forecast_data)
         st.dataframe(df, use_container_width=True)
+    else:
+        st.warning("No market data available. Check network connectivity.")
     
     # Detailed analysis for selected ticker
     st.subheader("🔍 Detailed Technical Analysis")
@@ -702,39 +800,55 @@ def render_trade_management(tracker: OptionsTracker):
         st.info("No open trades to manage.")
         return
     
-    for trade in open_trades:
-        st.subheader(f"Trade #{trade['id']}: {trade['ticker']} {trade['strategy']}")
+    for i, trade in enumerate(open_trades):
+        # Handle trades without ID (legacy data)
+        trade_id = trade.get('id', f'legacy_{i}')
+        ticker = trade.get('ticker', 'UNKNOWN')
+        strategy = trade.get('strategy', 'UNKNOWN')
         
-        evaluation = tracker.evaluate_trade(trade)
+        st.subheader(f"Trade #{trade_id}: {ticker} {strategy}")
+        
+        try:
+            evaluation = tracker.evaluate_trade(trade)
+        except Exception as e:
+            evaluation = {'recommendation': 'REVIEW', 'reason': f'Error evaluating: {str(e)}'}
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.write(f"**Entry Date:** {trade['entry_date']}")
-            st.write(f"**Expiration:** {trade['expiration']}")
+            st.write(f"**Entry Date:** {trade.get('entry_date', 'N/A')}")
+            st.write(f"**Expiration:** {trade.get('expiration', 'N/A')}")
             st.write(f"**Credit:** ${trade.get('credit', 0) * 100:.0f}")
-            st.write(f"**Recommendation:** {evaluation['recommendation']}")
-            st.write(f"**Reason:** {evaluation['reason']}")
+            st.write(f"**Recommendation:** {evaluation.get('recommendation', 'REVIEW')}")
+            st.write(f"**Reason:** {evaluation.get('reason', 'No evaluation available')}")
         
         with col2:
-            if st.button("✅ Close Trade", key=f"close_{trade['id']}", type="primary"):
-                exit_price = st.number_input("Exit Price:", value=0.0, step=0.01, key=f"exit_price_{trade['id']}")
-                exit_reason = st.text_input("Exit Reason:", key=f"exit_reason_{trade['id']}")
+            if st.button("✅ Close Trade", key=f"close_{trade_id}", type="primary"):
+                exit_price = st.number_input("Exit Price:", value=0.0, step=0.01, key=f"exit_price_{trade_id}")
+                exit_reason = st.text_input("Exit Reason:", key=f"exit_reason_{trade_id}")
                 
                 if exit_price > 0 and exit_reason:
-                    if hasattr(tracker, 'close_trade') and tracker.close_trade(trade['id'], exit_price, exit_reason):
-                        st.success("Trade closed successfully!")
-                        st.rerun()
+                    # Handle trades without proper ID
+                    if 'id' in trade and hasattr(tracker, 'close_trade'):
+                        if tracker.close_trade(trade['id'], exit_price, exit_reason):
+                            st.success("Trade closed successfully!")
+                            st.rerun()
+                        else:
+                            st.error("Failed to close trade.")
                     else:
-                        st.error("Failed to close trade.")
+                        st.warning("⚠️ Legacy trade format - manual closing required")
         
         with col3:
-            if st.button("�️ Delete Trade", key=f"delete_{trade['id']}"):
-                if hasattr(tracker, 'delete_trade') and tracker.delete_trade(trade['id']):
-                    st.success("Trade deleted!")
-                    st.rerun()
+            if st.button("🗑️ Delete Trade", key=f"delete_{trade_id}"):
+                # Handle trades without proper ID
+                if 'id' in trade and hasattr(tracker, 'delete_trade'):
+                    if tracker.delete_trade(trade['id']):
+                        st.success("Trade deleted!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to delete trade.")
                 else:
-                    st.error("Failed to delete trade.")
+                    st.warning("⚠️ Legacy trade format - manual deletion required")
         
         st.divider()
 

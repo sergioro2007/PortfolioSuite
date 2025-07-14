@@ -66,8 +66,8 @@ def test_project_structure():
     check_paths(required_files, is_dir=False)
 
 def test_profit_filter():
-    """Test that profit target filter is working"""
-    print("\n💰 Testing Profit Target Filter (≥ $1.00/share, $100/contract):")
+    """Test that expected profit filter is working"""
+    print("\n💰 Testing Expected Profit Filter (≥ $1.00/share, $100/contract):")
     
     tracker = OptionsTracker()
     suggestions = tracker.generate_trade_suggestions(5)
@@ -76,7 +76,7 @@ def test_profit_filter():
     
     if suggestions:
         for i, suggestion in enumerate(suggestions, 1):
-            profit_per_share = suggestion['profit_target']
+            profit_per_share = suggestion['expected_profit']
             profit_per_contract = profit_per_share * 100
             
             if profit_per_share >= 1.00:
@@ -119,18 +119,15 @@ def test_value_display():
             print(f"   📊 {title}")
             
             # Per-share values (from suggestion)
-            credit_per_share = suggestion['credit']
-            max_loss_per_share = suggestion['max_loss']
-            profit_target_per_share = suggestion['profit_target']
+            expected_profit_per_share = suggestion['expected_profit']
+            risk_per_share = suggestion['risk']
             
             # Per-contract values (multiply by 100)
-            credit_per_contract = credit_per_share * 100
-            max_loss_per_contract = max_loss_per_share * 100
-            profit_target_per_contract = profit_target_per_share * 100
+            expected_profit_per_contract = expected_profit_per_share * 100
+            risk_per_contract = risk_per_share * 100
             
-            print(f"      💰 Credit: ${credit_per_share:.2f}/share (${credit_per_contract:.0f}/contract)")
-            print(f"      📉 Max Loss: ${max_loss_per_share:.2f}/share (${max_loss_per_contract:.0f}/contract)")
-            print(f"      🎯 Profit Target: ${profit_target_per_share:.2f}/share (${profit_target_per_contract:.0f}/contract)")
+            print(f"      🎯 Expected Profit: ${expected_profit_per_share:.2f}/share (${expected_profit_per_contract:.0f}/contract)")
+            print(f"      📉 Risk: ${risk_per_share:.2f}/share (${risk_per_contract:.0f}/contract)")
             print()
     else:
         print("   ⚠️ No suggestions to test value display")

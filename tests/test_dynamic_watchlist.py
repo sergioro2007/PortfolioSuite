@@ -20,7 +20,7 @@ class TestDynamicWatchlist(unittest.TestCase):
         """Test that all tickers have the required parameters"""
         # Verify all expected parameters exist
         for ticker, data in self.tracker.watchlist.items():
-            for param in ['current_price', 'range_68', 'target_zone', 'bias_prob']:
+            for param in ['current_price', 'range_low', 'range_high', 'target_price', 'bullish_probability']:
                 self.assertIn(param, data, f"Ticker {ticker} is missing parameter '{param}'")
 
     def test_watchlist_parameter_values(self):
@@ -37,7 +37,8 @@ class TestDynamicWatchlist(unittest.TestCase):
             )
             
             # Check range makes sense (low < high)
-            low, high = data['range_68']
+            low = data['range_low']
+            high = data['range_high']
             self.assertLess(
                 low, 
                 high, 
@@ -46,14 +47,14 @@ class TestDynamicWatchlist(unittest.TestCase):
             
             # Check bias probability is between 0 and 1
             self.assertGreaterEqual(
-                data['bias_prob'], 
+                data['bullish_probability'], 
                 0, 
-                f"Ticker {ticker} has bias probability < 0: {data['bias_prob']}"
+                f"Ticker {ticker} has bias probability < 0: {data['bullish_probability']}"
             )
             self.assertLessEqual(
-                data['bias_prob'], 
+                data['bullish_probability'], 
                 1, 
-                f"Ticker {ticker} has bias probability > 1: {data['bias_prob']}"
+                f"Ticker {ticker} has bias probability > 1: {data['bullish_probability']}"
             )
     
     def test_watchlist_diversity(self):

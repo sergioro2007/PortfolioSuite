@@ -36,20 +36,152 @@ import pickle
 import os
 from typing import Dict, List, Tuple, Optional
 import warnings
+import socket
+import requests
 
 warnings.filterwarnings("ignore")
 
-# Optional plotly imports for enhanced visualizations
-try:
-    import plotly.graph_objects as go
-    import plotly.express as px
+# Network connectivity detection
+class NetworkManager:
+    """Manages network connectivity and provides fallback solutions for corporate environments"""
+    
+    def __init__(self):
+        self.is_online = False
+        self.network_type = "unknown"
+        self.error_message = ""
+        self.last_check_time = None
+        self.check_interval = 30  # Recheck every 30 seconds
+        # Initial check
+        self._check_connectivity()
+    
+    def _check_connectivity(self):
+        """Check network connectivity and determine network type"""
+        self.last_check_time = datetime.now()
+        
+        try:
+            # Test basic DNS resolution
+            socket.gethostbyname('google.com')
+            # Test Yahoo Finance specifically with shorter timeout for responsiveness
+            requests.get('https://query1.finance.yahoo.com', timeout=3)
+            self.is_online = True
+            self.network_type = "open"
+            self.error_message = ""
+        except socket.gaierror as e:
+            if "nodename nor servname provided" in str(e) or "Name or service not known" in str(e):
+                self.network_type = "corporate_blocked"
+                self.error_message = "Corporate network blocking external financial data sources"
+            else:
+                self.network_type = "limited"
+                self.error_message = f"DNS resolution issue: {str(e)}"
+            self.is_online = False
+        except requests.exceptions.RequestException as e:
+            self.network_type = "limited"
+            self.error_message = f"Financial data source unreachable: {str(e)}"
+            self.is_online = False
+        except Exception as e:
+            self.network_type = "unknown"
+            self.error_message = f"Unknown network issue: {str(e)}"
+            self.is_online = False
+    
+    def is_check_needed(self) -> bool:
+        """Check if we need to recheck connectivity based on time interval"""
+        if self.last_check_time is None:
+            return True
+        time_since_check = (datetime.now() - self.last_check_time).total_seconds()
+        return time_since_check >= self.check_interval
+    
+    def get_current_status(self) -> Tuple[bool, str, str]:
+        """Get current network status, rechecking if needed"""
+        # Recheck connectivity if enough time has passed
+        if self.is_check_needed():
+            self._check_connectivity()
+        
+        return self.is_online, self.network_type, self.error_message
+    
+    def get_status_message(self) -> str:
+        """Get user-friendly status message"""
+        if self.is_online:
+            return "✅ Connected to financial data sources"
+        elif self.network_type == "corporate_blocked":
+            return "🏢 Corporate network detected - external data sources blocked"
+        else:
+            return f"❌ Network issue: {self.error_message}"
+    
+    def get_recommendations(self) -> List[str]:
+        """Get recommendations based on network type"""
+        if self.is_online:
+            return ["All features available"]
+        elif self.network_type == "corporate_blocked":
+            return [
+                "Use application from home network for full functionality",
+                "Request IT to whitelist: query1.finance.yahoo.com, query2.finance.yahoo.com",
+                "Alternative: Use mobile hotspot for data connectivity",
+                "Offline mode available with limited functionality"
+            ]
+        else:
+            return [
+                "Check internet connection",
+                "Try again in a few minutes",
+                "Contact network administrator if problem persists"
+            ]
+    
+    def force_recheck(self):
+        """Force an immediate network connectivity recheck"""
+        self.last_check_time = None
+        self._check_connectivity()
 
-    PLOTLY_AVAILABLE = True
-except ImportError:
-    PLOTLY_AVAILABLE = False
+# Global network manager instance
+NETWORK_MANAGER = NetworkManager()
 
 
 class OptionsTracker:
+    """Options trading tracker for weekly income strategies"""
+    
+    def __init__(self):
+        self.trades_file = "data/options_trades.pkl"
+        self.predictions_file = "price_predictions.pkl"
+        self.target_weekly_income = 500
+        
+        # Initialize network manager
+        self.network_manager = NETWORK_MANAGER
+
+        # Load existing trades
+        self.trades = self.load_trades()
+        self.predictions = self.load_predictions()
+
+        # Strategy types
+        self.strategy_types = [
+            "Bull Put Spread",
+            "Bear Call Spread",
+            "Broken Wing Butterfly",
+            "Iron Condor",
+            "Cash Secured Put",
+            "Covered Call",
+            "Protective Put",
+        ]
+
+        # Generate a dynamic watchlist with popular options-active tickers
+        # This replaces the previous hard-coded watchlist with real-time data
+        self.watchlist = self.generate_dynamic_watchlist()
+    
+    def check_network_status(self) -> Dict:
+        """Check network status and return user-friendly information"""
+        # Get current status (will recheck if needed)
+        is_online, network_type, _ = self.network_manager.get_current_status()
+        
+        return {
+            'is_online': is_online,
+            'network_type': network_type,
+            'status_message': self.network_manager.get_status_message(),
+            'recommendations': self.network_manager.get_recommendations(),
+            'last_check': self.network_manager.last_check_time.strftime("%H:%M:%S") if self.network_manager.last_check_time else "Never"
+        }
+
+    def force_network_recheck(self):
+        """Force an immediate network connectivity recheck"""
+        self.network_manager.force_recheck()
+        return self.check_network_status()
+
     def edit_trade(self, trade_id: int, updates: dict):
         """Edit an existing trade by trade_id with updates dict."""
         updated = False
@@ -70,32 +202,6 @@ class OptionsTracker:
         if deleted:
             self.save_trades()
         return deleted
-
-    """Options trading tracker for weekly income strategies"""
-
-    def __init__(self):
-        self.trades_file = "data/options_trades.pkl"
-        self.predictions_file = "price_predictions.pkl"
-        self.target_weekly_income = 500
-
-        # Load existing trades
-        self.trades = self.load_trades()
-        self.predictions = self.load_predictions()
-
-        # Strategy types
-        self.strategy_types = [
-            "Bull Put Spread",
-            "Bear Call Spread",
-            "Broken Wing Butterfly",
-            "Iron Condor",
-            "Cash Secured Put",
-            "Covered Call",
-            "Protective Put",
-        ]
-
-        # Generate a dynamic watchlist with popular options-active tickers
-        # This replaces the previous hard-coded watchlist with real-time data
-        self.watchlist = self.generate_dynamic_watchlist()
 
     def load_trades(self) -> List[Dict]:
         """Load existing trades from file"""
@@ -212,9 +318,7 @@ class OptionsTracker:
     def _get_implied_volatility(self, ticker, current_price=None):
         """Helper method to get implied volatility from options data"""
         try:
-            import yfinance as yf
-            import numpy as np
-
+            # Use already imported modules
             stock = yf.Ticker(ticker)
 
             # Get current price if not provided
@@ -279,7 +383,7 @@ class OptionsTracker:
             print(f"  ⚠️ IV calculation error for {ticker}: {e}")
             return {"valid": False}
 
-    def predict_price_range(self, ticker: str, regime_multiplier: float = -0.2) -> Dict:
+    def predict_price_range(self, ticker: str) -> Dict:
         """Predict 1-week price range using ChatGPT's methodology (default)
 
         This is now an alias to the ChatGPT fully compatible method per user preference.
@@ -836,10 +940,10 @@ class OptionsTracker:
                     if len(suggestions) >= num_suggestions:
                         break
 
-                except Exception as e:
+                except Exception:
                     continue  # Skip tickers with errors
 
-        except Exception as e:
+        except Exception:
             # Return at least one fallback suggestion
             suggestions = [
                 {
@@ -919,5 +1023,63 @@ class OptionsTracker:
                 "bullish_prob": round(probability if price_direction > 0 else 1 - probability, 2),
             }
 
-        except Exception as e:
+        except Exception:
             return None
+
+    def add_trade(self, trade_data: dict):
+        """Add a new trade to the tracker"""
+        # Generate unique trade ID
+        trade_id = len(self.trades) + 1
+        
+        # Create trade record with required fields
+        trade = {
+            'id': trade_id,
+            'ticker': trade_data.get('ticker', ''),
+            'strategy': trade_data.get('strategy', ''),
+            'entry_date': datetime.now().strftime('%Y-%m-%d'),
+            'expiration': trade_data.get('expiration', ''),
+            'status': 'open',
+            'credit': trade_data.get('credit', 0),
+            'max_loss': trade_data.get('max_loss', 0),
+            'profit_target': trade_data.get('profit_target', 0),
+            'strike_price': trade_data.get('strike_price', 0),
+            'short_strike': trade_data.get('short_strike', 0),
+            'long_strike': trade_data.get('long_strike', 0),
+            'bias': trade_data.get('bias', ''),
+            'confidence': trade_data.get('confidence', ''),
+            'reasoning': trade_data.get('reasoning', ''),
+        }
+        
+        # Add strategy-specific fields
+        if trade_data.get('strategy') == 'Iron Condor':
+            trade.update({
+                'put_short_strike': trade_data.get('put_short_strike', 0),
+                'put_long_strike': trade_data.get('put_long_strike', 0),
+                'call_short_strike': trade_data.get('call_short_strike', 0),
+                'call_long_strike': trade_data.get('call_long_strike', 0),
+            })
+        
+        # Add legs if available
+        if 'legs' in trade_data:
+            trade['legs'] = trade_data['legs']
+        
+        # Add to trades list and save
+        self.trades.append(trade)
+        self.save_trades()
+        
+        return trade
+
+    def close_trade(self, trade_id: int, exit_price: float, exit_reason: str):
+        """Close an existing trade"""
+        for trade in self.trades:
+            if trade.get('id') == trade_id:
+                trade.update({
+                    'status': 'closed',
+                    'exit_date': datetime.now().strftime('%Y-%m-%d'),
+                    'exit_price': exit_price,
+                    'exit_reason': exit_reason,
+                    'pnl': trade.get('credit', 0) - exit_price  # Basic P&L calculation
+                })
+                self.save_trades()
+                return True
+        return False
