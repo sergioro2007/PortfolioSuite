@@ -662,132 +662,209 @@ def render_market_analysis(tracker: OptionsTracker):
             # Mathematical Breakdown Section
             st.subheader("🧮 Mathematical Calculation Breakdown")
             
-            # Volatility Analysis
-            with st.expander("📊 Step 1: Volatility Analysis", expanded=True):
-                current_price = prediction['current_price']
-                weekly_vol = prediction['weekly_volatility']
-                iv_based = prediction.get('iv_based', False)
-                
-                st.write("**Volatility Source:**")
-                if iv_based:
-                    st.success("✅ Using Implied Volatility from options market")
-                    st.write("- More accurate as it reflects market expectations")
-                    st.write("- Derived from current option prices")
-                else:
-                    st.info("📊 Using Historical Volatility (IV unavailable)")
-                    st.write("- Based on past 3-month price movements")
-                    st.write("- Annualized volatility divided by √52 for weekly")
-                
-                st.write("**Calculation:**")
-                annual_vol = weekly_vol * np.sqrt(52)
-                st.code(f"""
+            # Dual-Model Detection and ATR-Based Volatility Analysis
+            is_dual_model = prediction.get('method') == 'dual_model_atr_specification' or 'atr_value' in prediction
+            
+            if is_dual_model:
+                with st.expander("📊 Step 1: ATR-Based Volatility Analysis", expanded=True):
+                    current_price = prediction['current_price']
+                    atr_value = prediction.get('atr_value', 0)
+                    weekly_vol = prediction['weekly_volatility']
+                    iv_based = prediction.get('iv_based', False)
+
+                    st.write("**🎯 Dual-Model Volatility Comparison:**")
+
+                    # ATR Analysis
+                    st.write("**🎯 ATR (Average True Range) - Primary Model:**")
+                    st.success("✅ Using 14-day ATR for range calculation")
+                    st.write("- More responsive to recent price action")
+                    st.write("- Accounts for gaps and limit moves")
+                    st.write("- Industry standard for volatility measurement")
+
+                    # Historical Vol Comparison
+                    annual_vol = weekly_vol * np.sqrt(52)
+                    st.write("**📊 Historical Volatility - Comparison:**")
+                    if iv_based:
+                        st.info("📈 Implied Volatility overlay available")
+                    else:
+                        st.info("📊 Using historical volatility for IV comparison")
+
+                    st.write("**Calculation Comparison:**")
+                    st.code(f"""
+ATR (14-day): ${atr_value:.2f}
+Historical Vol: {annual_vol:.1%} annual, {weekly_vol:.1%} weekly
+ATR Range Width: ${prediction.get('range_width_$', 0):.2f} ({prediction.get('range_width_%', 0):.1%})
+
+ATR-Based Range: ${prediction.get('predicted_low', 0):.2f} - ${prediction.get('predicted_high', 0):.2f}
+                    """)
+
+                    # IV Overlay if available
+                    if prediction.get('iv_range'):
+                        st.write("**📈 Implied Volatility Overlay:**")
+                        st.code(f"""
+ATR Range: ${prediction.get('predicted_low', 0):.2f} - ${prediction.get('predicted_high', 0):.2f}
+IV Range:  {prediction['iv_range']}
+                        """)
+            else:
+                # Legacy volatility analysis for non-dual-model predictions
+                with st.expander("📊 Step 1: Volatility Analysis", expanded=True):
+                    current_price = prediction['current_price']
+                    weekly_vol = prediction['weekly_volatility']
+                    iv_based = prediction.get('iv_based', False)
+                    
+                    st.write("**Volatility Source:**")
+                    if iv_based:
+                        st.success("✅ Using Implied Volatility from options market")
+                        st.write("- More accurate as it reflects market expectations")
+                        st.write("- Derived from current option prices")
+                    else:
+                        st.info("📊 Using Historical Volatility (IV unavailable)")
+                        st.write("- Based on past 3-month price movements")
+                        st.write("- Annualized volatility divided by √52 for weekly")
+                    
+                    st.write("**Calculation:**")
+                    annual_vol = weekly_vol * np.sqrt(52)
+                    st.code(f"""
 Weekly Volatility = {weekly_vol:.3f} ({weekly_vol:.1%})
 Annual Volatility = {annual_vol:.3f} ({annual_vol:.1%})
 Base Range = Current Price × Weekly Vol
 Base Range = ${current_price:.2f} × {weekly_vol:.3f} = ${current_price * weekly_vol:.2f}
-                """)
+                    """)
             
-            # Technical Bias Calculation
-            with st.expander("⚖️ Step 2: Technical Bias Calculation", expanded=True):
-                rsi = indicators.get('rsi', 50)
-                macd = indicators.get('macd', 0)
-                macd_signal = indicators.get('macd_signal', 0)
-                momentum = indicators.get('momentum', 0)
-                bias_score = prediction.get('bias_score', 0)
-                
-                st.write("**Individual Bias Components:**")
-                
-                # RSI Bias
-                rsi_bias = 0
-                if rsi > 70:
-                    rsi_bias = -0.2
-                    st.write(f"🔴 RSI Bias: {rsi:.1f} > 70 (Overbought) → -0.2")
-                elif rsi < 30:
-                    rsi_bias = 0.2
-                    st.write(f"🟢 RSI Bias: {rsi:.1f} < 30 (Oversold) → +0.2")
-                # Calculate macd_bias and momentum_bias for total bias
-                macd_bias = 0.1 if macd > macd_signal else -0.1
-                momentum_bias = 0.1 if momentum > 2 else (-0.1 if momentum < -2 else 0.0)
-                st.write("**Total Bias Score:**")
-                st.code(f"""
+            # Dual-Model Step 2: Technical Bias / Regime Scoring
+            if is_dual_model:
+                with st.expander("⚖️ Step 2: Standardized Regime Scoring", expanded=True):
+                    indicators = prediction['indicators']
+                    rsi = indicators.get('rsi', 50)
+                    macd = indicators.get('macd', 0)
+                    macd_signal = indicators.get('macd_signal', 0)
+                    momentum = indicators.get('momentum', 0)
+                    regime_score = prediction.get('regime_score', 0)
+
+                    st.write("**🎯 Dual-Model Specification Compliance:**")
+                    st.write("Following exact algorithm from Dual_Model_Price_Prediction_Spec.md")
+
+                    st.write("**Individual Regime Components:**")
+
+                    # RSI Bias (exact spec)
+                    rsi_bias = -0.2 if rsi > 70 else (0.2 if rsi < 30 else 0.0)
+                    if rsi > 70:
+                        st.write(f"🔴 RSI Bias: {rsi:.1f} > 70 (Overbought) → -0.2")
+                    elif rsi < 30:
+                        st.write(f"🟢 RSI Bias: {rsi:.1f} < 30 (Oversold) → +0.2")
+                    else:
+                        st.write(f"🟡 RSI Bias: {rsi:.1f} (Neutral) → 0.0")
+
+                    # MACD Bias (exact spec)
+                    macd_bias = 0.1 if macd > macd_signal else -0.1
+                    macd_direction = "Bullish" if macd > macd_signal else "Bearish"
+                    macd_color = "🟢" if macd > macd_signal else "🔴"
+                    st.write(f"{macd_color} MACD Bias: {macd:.3f} vs {macd_signal:.3f} ({macd_direction}) → {macd_bias:+.1f}")
+
+                    # Momentum Bias (exact spec)
+                    momentum_bias = 0.1 if momentum > 2 else (-0.1 if momentum < -2 else 0.0)
+                    if momentum > 2:
+                        st.write(f"🟢 Momentum Bias: {momentum:.2f}% > 2% (Strong Up) → +0.1")
+                    elif momentum < -2:
+                        st.write(f"🔴 Momentum Bias: {momentum:.2f}% < -2% (Strong Down) → -0.1")
+                    else:
+                        st.write(f"🟡 Momentum Bias: {momentum:.2f}% (Neutral) → 0.0")
+
+                    st.write("**🧮 Regime Score Calculation:**")
+                    st.code(f"""
+# Dual-Model Specification:
+rsi_bias = {rsi_bias:+.1f}
+macd_bias = {macd_bias:+.1f}
+momentum_bias = {momentum_bias:+.1f}
+
+regime_score = rsi_bias + macd_bias + momentum_bias
+regime_score = {regime_score:+.2f}
+                    """)
+            else:
+                # Legacy technical bias calculation for non-dual-model predictions
+                with st.expander("⚖️ Step 2: Technical Bias Calculation", expanded=True):
+                    rsi = indicators.get('rsi', 50)
+                    macd = indicators.get('macd', 0)
+                    macd_signal = indicators.get('macd_signal', 0)
+                    momentum = indicators.get('momentum', 0)
+                    bias_score = prediction.get('bias_score', 0)
+                    
+                    st.write("**Individual Bias Components:**")
+                    
+                    # RSI Bias
+                    rsi_bias = 0
+                    if rsi > 70:
+                        rsi_bias = -0.2
+                        st.write(f"🔴 RSI Bias: {rsi:.1f} > 70 (Overbought) → -0.2")
+                    elif rsi < 30:
+                        rsi_bias = 0.2
+                        st.write(f"🟢 RSI Bias: {rsi:.1f} < 30 (Oversold) → +0.2")
+                    
+                    # Calculate macd_bias and momentum_bias for total bias
+                    macd_bias = 0.1 if macd > macd_signal else -0.1
+                    momentum_bias = 0.1 if momentum > 2 else (-0.1 if momentum < -2 else 0.0)
+                    
+                    st.write("**Total Bias Score:**")
+                    st.code(f"""
 Total Bias = RSI + MACD + Momentum
 Total Bias = {rsi_bias:+.1f} + {macd_bias:+.1f} + {momentum_bias:+.1f} = {bias_score:+.2f}
-                """)
-                st.write("- Accounts for gaps and limit moves")
-                st.write("- Industry standard for volatility measurement")
-                annual_vol = weekly_vol * np.sqrt(52)
-                st.write("**📊 Historical Volatility - Comparison:**")
-                if iv_based:
-                    st.info("📈 Implied Volatility overlay available")
-                else:
-                    st.info("📊 Using historical volatility for IV comparison")
-                st.write("**Calculation Comparison:**")
-                st.write("**Individual Regime Components:**")
-                rsi_bias = -0.2 if rsi > 70 else (0.2 if rsi < 30 else 0.0)
-                if rsi > 70:
-                    st.write(f"🔴 RSI Bias: {rsi:.1f} > 70 (Overbought) → -0.2")
-                elif rsi < 30:
-                    st.write(f"🟢 RSI Bias: {rsi:.1f} < 30 (Oversold) → +0.2")
-                if prediction.get('iv_range'):
-                    st.write("**📈 Implied Volatility Overlay:**")
-                    st.code(f"IV Range: {prediction['iv_range']}")
+                    """)
 
-            # --- Dual-Model Step 2: Standardized Regime Scoring ---
-            with st.expander("⚖️ Step 2: Standardized Regime Scoring", expanded=True):
-                indicators = prediction['indicators']
-                rsi = indicators.get('rsi', 50)
-                macd = indicators.get('macd', 0)
-                macd_signal = indicators.get('macd_signal', 0)
-                momentum = indicators.get('momentum', 0)
-                regime_score = prediction.get('regime_score', 0)
-                st.write("**🎯 Dual-Model Specification Compliance:**")
-                st.write("Following exact algorithm from Dual_Model_Price_Prediction_Spec.md")
-                st.write("**Individual Regime Components:**")
-                rsi_bias = -0.2 if rsi > 70 else (0.2 if rsi < 30 else 0.0)
-                if rsi > 70:
-                    st.write(f"🔴 RSI Bias: {rsi:.1f} > 70 (Overbought) → -0.2")
-                elif rsi < 30:
-                    st.write(f"🟢 RSI Bias: {rsi:.1f} < 30 (Oversold) → +0.2")
-                else:
-                    st.write(f"🟡 RSI Bias: {rsi:.1f} (Neutral) → 0.0")
-                macd_bias = 0.1 if macd > macd_signal else -0.1
-                macd_direction = "Bullish" if macd > macd_signal else "Bearish"
-                macd_color = "🟢" if macd > macd_signal else "🔴"
-                st.write(f"{macd_color} MACD Bias: {macd:.3f} vs {macd_signal:.3f} ({macd_direction}) → {macd_bias:+.1f}")
-                momentum_bias = 0.1 if momentum > 2 else (-0.1 if momentum < -2 else 0.0)
-                if momentum > 2:
-                    st.write(f"🟢 Momentum Bias: {momentum:.2f}% > 2% (Strong Up) → +0.1")
-                elif momentum < -2:
-                    st.write(f"🔴 Momentum Bias: {momentum:.2f}% < -2% (Strong Down) → -0.1")
-                else:
-                    st.write(f"🟡 Momentum Bias: {momentum:.2f}% (Neutral) → 0.0")
-                st.write("**🧮 Regime Score Calculation:**")
+            # Dual-Model Step 3: Range Calculation
+            if is_dual_model:
+                with st.expander("🎯 Step 3: Dual-Model Range Calculation", expanded=True):
+                    current_price = prediction['current_price']
+                    target_mid = prediction.get('target_mid', prediction.get('target_price', current_price))
+                    atr_value = prediction.get('atr_value', 0)
+                    regime_score = prediction.get('regime_score', 0)
+                    predicted_low = prediction.get('predicted_low', prediction.get('lower_bound', 0))
+                    predicted_high = prediction.get('predicted_high', prediction.get('upper_bound', 0))
 
-            # --- Dual-Model Step 3: Dual-Model Range Calculation ---
-            with st.expander("🎯 Step 3: Dual-Model Range Calculation", expanded=True):
-                current_price = prediction['current_price']
-                target_price = prediction.get('target_price', current_price)
-                atr_value = prediction.get('atr_value', 0)
-                regime_score = prediction.get('regime_score', 0)
-                lower_bound = prediction.get('lower_bound', current_price * 0.95)
-                upper_bound = prediction.get('upper_bound', current_price * 1.05)
-                
-                st.write("**🎯 Target Price Calculation (Spec):**")
-                bias_pct = regime_score * 0.01
-                
-                st.code(f"""
-Target Price = Current Price × (1 + Regime Score × 0.01)
-Target Price = ${current_price:.2f} × (1 + {regime_score:.2f} × 0.01)
-Target Price = ${current_price:.2f} × {1 + bias_pct:.4f}
+                    st.write("**🎯 Target Price Calculation (Spec):**")
+                    bias_pct = regime_score * 0.01
+                    st.code(f"""
+# Step 1: Target Price
+bias_pct = regime_score × 0.01 = {regime_score:.3f} × 0.01 = {bias_pct:.5f}
+target_mid = current_price × (1 + bias_pct)
+target_mid = ${current_price:.2f} × (1 + {bias_pct:.5f}) = ${target_mid:.2f}
+                    """)
+
+                    st.write("**📊 ATR Range Calculation (Spec):**")
+                    st.code(f"""
+# Step 2: ATR Range
+ATR (14-day) = ${atr_value:.2f}
+predicted_low = target_mid - atr_value = ${target_mid:.2f} - ${atr_value:.2f} = ${predicted_low:.2f}
+predicted_high = target_mid + atr_value = ${target_mid:.2f} + ${atr_value:.2f} = ${predicted_high:.2f}
+
+Range Width = ${prediction.get('range_width_$', 0):.2f} ({prediction.get('range_width_%', 0):.1f}% of current price)
+                    """)
+
+                    # Show IV overlay if available
+                    if prediction.get('iv_range'):
+                        st.write("**📈 IV Overlay Comparison:**")
+                        st.code(f"""
+ATR Range: ${predicted_low:.2f} - ${predicted_high:.2f}
+IV Range:  {prediction['iv_range']}
+                        """)
+            else:
+                # Legacy final price range calculation for non-dual-model predictions
+                with st.expander("🎯 Step 3: Final Price Range Calculation", expanded=True):
+                    current_price = prediction['current_price']
+                    target_price = prediction.get('target_price', current_price)
+                    lower_bound = prediction.get('lower_bound', current_price * 0.95)
+                    upper_bound = prediction.get('upper_bound', current_price * 1.05)
+                    
+                    st.write("**🎯 Target Price Calculation:**")
+                    st.code(f"""
 Target Price = ${target_price:.2f}
-                """)
-                
-                st.write("**🎯 Range Calculation:**")
-                st.code(f"""
+                    """)
+                    
+                    st.write("**🎯 Range Calculation:**")
+                    st.code(f"""
 Lower Bound = ${lower_bound:.2f}
 Upper Bound = ${upper_bound:.2f}
 Range Width = ${upper_bound - lower_bound:.2f} ({((upper_bound - lower_bound) / current_price * 100):.1f}%)
-                """)
+                    """)
 
 def render_trade_management(tracker: OptionsTracker):
     """Render trade management interface"""

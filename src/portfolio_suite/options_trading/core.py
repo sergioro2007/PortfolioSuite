@@ -310,6 +310,8 @@ class OptionsTracker:
                 "volatility": close.pct_change().std() * np.sqrt(252),
                 "momentum": (current_price - close.iloc[-5]) / close.iloc[-5] * 100,
                 "atr": atr.iloc[-1],  # Add ATR to indicators
+                "atr_14": atr.iloc[-1],  # Also add as atr_14 for spec compliance
+                "price_history": hist  # Add for dual-model calculations
             }
         except Exception as e:
             print(f"Error calculating indicators for '{ticker}': {e}")
@@ -384,16 +386,112 @@ class OptionsTracker:
             return {"valid": False}
 
     def predict_price_range(self, ticker: str) -> Dict:
-        """Predict 1-week price range using ChatGPT's methodology (default)
+        """Predict 1-week price range using Dual-Model ATR specification (default)
 
-        This is now an alias to the ChatGPT fully compatible method per user preference.
-        The ChatGPT method provides the most accurate predictions based on testing.
+        This uses the ATR-based dual-model specification which provides more accurate
+        predictions by combining ATR volatility with regime-based directional bias.
 
         Args:
             ticker: Stock ticker symbol
-            regime_multiplier: Ignored, method uses ChatGPT's -0.2 approach
         """
-        return self._predict_price_range_chatgpt_internal(ticker)
+        return self.predict_price_range_dual_model(ticker)
+
+    def predict_price_range_dual_model(self, ticker: str) -> Dict:
+        """
+        Dual-Model Price Prediction using ATR + Regime Scoring
+        Implements specification from Dual_Model_Price_Prediction_Spec.md
+        
+        This method combines:
+        1. ATR-based volatility measurement (14-day ATR)
+        2. Standardized regime scoring using RSI, MACD, and momentum
+        3. Target price calculation with bias adjustment
+        4. Dual range output (ATR-based + optional IV overlay)
+        
+        Returns enhanced prediction with full spec compliance and backward compatibility.
+        """
+        try:
+            indicators = self.get_technical_indicators(ticker)
+            if not indicators:
+                return {}
+
+            current_price = indicators['current_price']
+            atr_value = indicators['atr']  # 14-day ATR
+
+            # Step 1: Regime Score Calculation (per spec)
+            rsi = indicators.get('rsi', 50)
+            macd = indicators.get('macd', 0)
+            macd_signal = indicators.get('macd_signal', 0)
+            momentum = indicators.get('momentum', 0)
+
+            # RSI bias (exact spec)
+            rsi_bias = -0.2 if rsi > 70 else (0.2 if rsi < 30 else 0.0)
+
+            # MACD bias (exact spec)
+            macd_bias = 0.1 if macd > macd_signal else -0.1
+
+            # Momentum bias (exact spec) - 5-day momentum in percentage
+            momentum_bias = 0.1 if momentum > 2 else (-0.1 if momentum < -2 else 0.0)
+
+            # Combined regime score
+            regime_score = rsi_bias + macd_bias + momentum_bias
+
+            # Step 2: Target Price Calculation (per spec)
+            bias_pct = regime_score * 0.01
+            target_mid = current_price * (1 + bias_pct)
+
+            # Step 3: ATR Range Calculation (per spec)
+            predicted_low = target_mid - atr_value
+            predicted_high = target_mid + atr_value
+
+            # Step 4: Optional IV Overlay
+            iv_data = self._get_implied_volatility(ticker, current_price)
+            iv_range_str = ""
+            if iv_data and iv_data.get('valid', False):
+                weekly_iv = iv_data['weekly_vol']
+                iv_range = current_price * weekly_iv
+                iv_low = current_price - iv_range
+                iv_high = current_price + iv_range
+                iv_range_str = f"{iv_low:.2f} – {iv_high:.2f}"
+
+            # Calculate metrics
+            range_width_dollar = predicted_high - predicted_low
+            range_width_percent = (range_width_dollar / current_price) * 100
+
+            # Probability calculation
+            bullish_probability = 0.5 + (regime_score * 0.5)
+            bullish_probability = max(0.1, min(0.9, bullish_probability))
+
+            # Spec-compliant output format with backward compatibility
+            return {
+                # Core spec compliance
+                'ticker': ticker,
+                'current_price': current_price,
+                'target_mid': target_mid,
+                'predicted_low': predicted_low,
+                'predicted_high': predicted_high,
+                'range_width_$': range_width_dollar,
+                'range_width_%': range_width_percent,
+                'iv_range': iv_range_str,
+
+                # Enhanced features
+                'atr_value': atr_value,
+                'regime_score': regime_score,
+
+                # Backward compatibility (existing UI expects these)
+                'lower_bound': predicted_low,
+                'upper_bound': predicted_high,
+                'target_price': target_mid,
+                'bullish_probability': bullish_probability,
+                'bias_score': regime_score,
+                'weekly_volatility': indicators.get('volatility', 0) / np.sqrt(52),
+                'iv_based': iv_data.get('valid', False) if iv_data else False,
+                'indicators': indicators,
+                'method': 'dual_model_atr_specification'
+            }
+
+        except Exception as e:
+            print(f"Error in dual-model prediction for {ticker}: {e}")
+            return {}
 
     def predict_price_range_traditional_bias(self, ticker: str) -> Dict:
         """Predict 1-week price range using traditional regime bias (0.01 multiplier)
