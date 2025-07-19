@@ -34,5 +34,23 @@
     "price": 330.0,
     "total_value": 3300.0,
     "trade_date": "2025-07-19T17:47:26.459024"
+  },
+  {
+    "trade_id": "NFLX_20250719_175021",
+    "symbol": "NFLX",
+    "action": "BUY",
+    "quantity": 15,
+    "price": 485.25,
+    "total_value": 7278.75,
+    "trade_date": "2025-07-19T17:50:21.489776"
+  },
+  {
+    "trade_id": "DIS_20250719_175021",
+    "symbol": "DIS",
+    "action": "BUY",
+    "quantity": 40,
+    "price": 112.75,
+    "total_value": 4510.0,
+    "trade_date": "2025-07-19T17:50:21.490258"
   }
 ]
