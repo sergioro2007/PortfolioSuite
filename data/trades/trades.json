@@ -1,0 +1,38 @@
+[
+  {
+    "trade_id": "AMZN_20250719_174601",
+    "symbol": "AMZN",
+    "action": "BUY",
+    "quantity": 25,
+    "price": 180.5,
+    "total_value": 4512.5,
+    "trade_date": "2025-07-19T17:46:01.017497"
+  },
+  {
+    "trade_id": "META_20250719_174726",
+    "symbol": "META",
+    "action": "BUY",
+    "quantity": 20,
+    "price": 325.75,
+    "total_value": 6515.0,
+    "trade_date": "2025-07-19T17:47:26.458269"
+  },
+  {
+    "trade_id": "AMD_20250719_174726",
+    "symbol": "AMD",
+    "action": "BUY",
+    "quantity": 100,
+    "price": 95.25,
+    "total_value": 9525.0,
+    "trade_date": "2025-07-19T17:47:26.458699"
+  },
+  {
+    "trade_id": "META_20250719_174726",
+    "symbol": "META",
+    "action": "SELL",
+    "quantity": 10,
+    "price": 330.0,
+    "total_value": 3300.0,
+    "trade_date": "2025-07-19T17:47:26.459024"
+  }
+]
